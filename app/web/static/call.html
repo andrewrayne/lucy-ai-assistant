@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Call Lucy</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #111316);
+    --fg: var(--tg-theme-text-color, #f2f3f5);
+    --muted: var(--tg-theme-hint-color, #8b9099);
+    --card: var(--tg-theme-secondary-bg-color, #1b1e23);
+    --accent: var(--tg-theme-button-color, #8b5cf6);
+    --green: #22c55e;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+    user-select: none;
+  }
+  .top { text-align: center; margin-top: 4vh; }
+  .avatar {
+    width: 132px; height: 132px; border-radius: 50%; margin: 0 auto 18px;
+    display: grid; place-items: center; font-size: 56px; font-weight: 600; color: #fff;
+    background: radial-gradient(circle at 30% 30%, #a78bfa, #6d28d9);
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, .55); transition: box-shadow .2s;
+  }
+  .avatar.speaking { animation: pulse 1.2s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(139,92,246,.55); } 100% { box-shadow: 0 0 0 26px rgba(139,92,246,0); } }
+  h1 { font-size: 26px; margin: 0; font-weight: 600; }
+  #status { color: var(--muted); margin-top: 6px; min-height: 22px; }
+  #captions {
+    width: 100%; max-width: 520px; flex: 1 1 0; min-height: 0; margin: 20px 0;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; user-select: text;
+  }
+  /* Pushes the first lines to the bottom while the chat is short, without breaking scrolling. */
+  #captions::before { content: ""; margin-top: auto; }
+  .line { padding: 8px 12px; border-radius: 14px; max-width: 88%; background: var(--card); animation: fade .2s;
+          white-space: pre-wrap; overflow-wrap: anywhere; flex-shrink: 0; }
+  .line.user { align-self: flex-end; background: color-mix(in srgb, var(--accent) 22%, var(--card)); }
+  .line .who { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  .controls { display: flex; gap: 28px; align-items: center; justify-content: center; }
+  button {
+    border: 0; border-radius: 50%; width: 72px; height: 72px; cursor: pointer; color: #fff;
+    display: grid; place-items: center; transition: transform .1s, opacity .2s;
+  }
+  button:active { transform: scale(.94); }
+  button svg { width: 32px; height: 32px; fill: currentColor; }
+  #call { background: var(--green); width: 84px; height: 84px; }
+  #hangup { background: var(--red); }
+  #mute { background: var(--card); color: var(--fg); width: 60px; height: 60px; }
+  #mute.on { background: var(--fg); color: var(--bg); }
+  .hidden { display: none !important; }
+  .label { text-align: center; color: var(--muted); font-size: 13px; margin-top: 8px; }
+  #fallback { text-align: center; max-width: 360px; }
+  #fallback p { color: var(--muted); }
+  .wide {
+    width: auto; height: auto; border-radius: 14px; padding: 14px 22px;
+    background: var(--accent); color: var(--tg-theme-button-text-color, #fff); font-size: 16px; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="avatar" id="avatar">L</div>
+    <h1>Lucy</h1>
+    <div id="status">Tap to call</div>
+  </div>
+
+  <div id="captions" aria-live="polite"></div>
+
+  <div id="fallback" class="hidden">
+    <p id="fallbackText">Telegram can't use the microphone on this device. Open the call in your browser instead.</p>
+    <button class="wide" id="openBrowser">Open in browser</button>
+  </div>
+
+  <div>
+    <div class="controls">
+      <button id="mute" class="hidden" aria-label="Mute">
+        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+      </button>
+      <button id="call" aria-label="Call">
+        <svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1L6.6 10.8z"/></svg>
+      </button>
+      <button id="hangup" class="hidden" aria-label="Hang up">
+        <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1a1 1 0 0 1-.56.9 11.5 11.5 0 0 0-2.66 1.85 1 1 0 0 1-1.4 0L.29 13.08a1 1 0 0 1 0-1.41C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67a1 1 0 0 1 0 1.41l-2.48 2.48a1 1 0 0 1-1.4 0 11.3 11.3 0 0 0-2.67-1.85 1 1 0 0 1-.56-.9v-3.1A14.9 14.9 0 0 0 12 9z"/></svg>
+      </button>
+    </div>
+    <div class="label" id="timer"></div>
+  </div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const initData = (tg && tg.initData) || "";
+const linkToken = new URLSearchParams(location.search).get("t");
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), avatar = $("avatar"), captions = $("captions");
+
+// Microphone -> 16 kHz 16-bit PCM in 100 ms chunks (averaging downsampler).
+const WORKLET = `
+class Capture extends AudioWorkletProcessor {
+  constructor() { super(); this.ratio = sampleRate / 16000; this.t = 0; this.sum = 0; this.n = 0;
+                  this.out = new Int16Array(1600); this.i = 0; }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0]; if (!ch) return true;
+    for (let k = 0; k < ch.length; k++) {
+      this.sum += ch[k]; this.n++; this.t += 1;
+      if (this.t >= this.ratio) {
+        this.t -= this.ratio; let v = this.sum / this.n; this.sum = 0; this.n = 0;
+        v = Math.max(-1, Math.min(1, v)); this.out[this.i++] = v < 0 ? v * 0x8000 : v * 0x7fff;
+        if (this.i === this.out.length) { this.port.postMessage(this.out.buffer.slice(0)); this.i = 0; }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("capture", Capture);`;
+
+let ws, stream, inCtx, outCtx, muted = false, nextTime = 0, sources = new Set(), started = 0, timerId, lastRole = null, lastLine = null;
+
+function setStatus(text) { statusEl.textContent = text; }
+function show(id, on) { $(id).classList.toggle("hidden", !on); }
+function inCall(on) { show("call", !on); show("hangup", on); show("mute", on); }
+
+function addCaption(role, text) {
+  // Follow new text only if the owner is already at the bottom (so reading older lines isn't interrupted).
+  const atBottom = captions.scrollHeight - captions.scrollTop - captions.clientHeight < 40;
+  if (role !== lastRole || !lastLine) {
+    lastLine = document.createElement("div");
+    lastLine.className = "line " + role;
+    lastLine.innerHTML = `<span class="who">${role === "user" ? "You" : "Lucy"}</span><span class="txt"></span>`;
+    captions.appendChild(lastLine);   // the whole conversation stays; scroll to read it
+    lastRole = role;
+  }
+  const txt = lastLine.querySelector(".txt");
+  txt.textContent = (txt.textContent + text).replace(/\s+/g, " ").trimStart();
+  if (atBottom) captions.scrollTop = captions.scrollHeight;
+}
+
+function play(buffer) {
+  const pcm = new Int16Array(buffer);
+  const f32 = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 0x8000;
+  const audio = outCtx.createBuffer(1, f32.length, 24000);
+  audio.copyToChannel(f32, 0);
+  const src = outCtx.createBufferSource();
+  src.buffer = audio; src.connect(outCtx.destination);
+  const at = Math.max(outCtx.currentTime + 0.04, nextTime);
+  src.start(at); nextTime = at + audio.duration;
+  sources.add(src); avatar.classList.add("speaking");
+  src.onended = () => { sources.delete(src); if (!sources.size) avatar.classList.remove("speaking"); };
+}
+
+function stopPlayback() {
+  sources.forEach((s) => { try { s.stop(); } catch (e) {} });
+  sources.clear(); nextTime = 0; avatar.classList.remove("speaking");
+}
+
+function tick() {
+  const s = Math.floor((Date.now() - started) / 1000);
+  $("timer").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+async function micFailed(err) {
+  console.error(err);
+  setStatus("Microphone unavailable");
+  if (initData) {            // inside Telegram: offer the browser instead
+    show("fallback", true); show("call", false);
+  } else {
+    setStatus("Allow microphone access to call Lucy");
+  }
+}
+
+async function startCall() {
+  if (!initData && !linkToken) { setStatus("Open this page from Lucy in Telegram"); return; }
+  setStatus("Connecting…");
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+    });
+  } catch (err) { return micFailed(err); }
+
+  inCtx = new AudioContext();
+  outCtx = new AudioContext({ sampleRate: 24000 });
+  await inCtx.resume(); await outCtx.resume();
+  await inCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" })));
+  const mic = inCtx.createMediaStreamSource(stream);
+  const capture = new AudioWorkletNode(inCtx, "capture");
+  const silent = inCtx.createGain(); silent.gain.value = 0;   // keeps the graph running everywhere
+  mic.connect(capture); capture.connect(silent); silent.connect(inCtx.destination);
+  capture.port.onmessage = (e) => { if (ws && ws.readyState === 1 && !muted) ws.send(e.data); };
+
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/call");
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => ws.send(JSON.stringify(linkToken ? { type: "auth", token: linkToken } : { type: "auth", init_data: initData }));
+  ws.onmessage = (e) => {
+    if (typeof e.data !== "string") { play(e.data); return; }
+    const m = JSON.parse(e.data);
+    if (m.type === "ready") { inCall(true); started = Date.now(); timerId = setInterval(tick, 1000); tick(); setStatus("Connected"); }
+    else if (m.type === "transcript") addCaption(m.role, m.text);
+    else if (m.type === "interrupted") stopPlayback();
+    else if (m.type === "status") setStatus(m.text || "Connected");
+    else if (m.type === "ended") endCall(m.reason);
+  };
+  ws.onclose = (e) => endCall(e.code === 4401 ? "Not authorized. Open the call from Lucy in Telegram." : null);
+  ws.onerror = () => setStatus("Connection problem");
+  try { if (navigator.wakeLock) await navigator.wakeLock.request("screen"); } catch (e) {}
+}
+
+function endCall(reason) {
+  if (!stream && !ws) return;
+  try { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "hangup" })); } catch (e) {}
+  try { ws && ws.close(); } catch (e) {}
+  ws = null;
+  stopPlayback();
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null;
+  try { inCtx && inCtx.close(); outCtx && outCtx.close(); } catch (e) {}
+  clearInterval(timerId);
+  inCall(false); muted = false; $("mute").classList.remove("on");
+  setStatus(reason || (started ? "Call ended · tap to call again" : "Tap to call"));
+  lastRole = null; lastLine = null;
+}
+
+$("call").onclick = startCall;
+$("hangup").onclick = () => endCall(null);
+$("mute").onclick = () => { muted = !muted; $("mute").classList.toggle("on", muted); setStatus(muted ? "Muted" : "Connected"); };
+$("openBrowser").onclick = async () => {
+  const r = await fetch("/api/call/link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ init_data: initData }) });
+  if (!r.ok) { $("fallbackText").textContent = "Couldn't create a link. Please try again."; return; }
+  const { url } = await r.json();
+  if (tg && tg.openLink) tg.openLink(url); else location.href = url;
+};
+if (!initData && !linkToken) setStatus("Open this page from Lucy in Telegram");
+</script>
+</body>
+</html>

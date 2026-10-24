@@ -1,0 +1,11 @@
+aiogram==3.31.0
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+pydantic-settings==2.16.1
+tzdata==2026.1
+google-genai==2.33.0
+supabase==2.33.0
+apscheduler==3.11.3
+httpx==0.28.1
+markdown==3.11.2
+python-multipart==0.0.32
