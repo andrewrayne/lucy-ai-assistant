@@ -490,11 +490,12 @@ Wherever you are:
   model: 4 of 4 attacks blocked (including a disguised "invoice" and a malicious link), 3 of 3 genuine requests allowed
 - [x] Crash alerts in Telegram (rate-limited, secrets removed; a test alert reached Telegram), logs in Railway
 - [x] API cost tracking (Gemini text, voice, embeddings, images; Twilio call prices) with a daily limit and `/usage`
-- [ ] Railway template with a "Deploy on Railway" button (steps in the README; needs a public, clean copy of the
-  repository: the owner's decision)
+- [x] Railway template "Lucy AI Assistant" with a "Deploy on Railway" button (`railway.com/deploy/EkjrZZ`, from the
+  public repository; 5 required variables with descriptions, 13 optional ones, JARVIS/AGENTS tokens generated)
 - [x] README with setup instructions (quick start, optional parts, safety, development, how to make the template)
 - [x] Personal data removed from the repository files (emails, phone numbers, domain, Notion page names); the old
-  versions remain in the private git history
+  versions remain only in the private repository's history
+- [x] Clean public copy: https://github.com/andrewrayne/lucy-ai-assistant (a fresh repository with no history)
 
 ### How it works
 
@@ -509,6 +510,18 @@ Wherever you are:
 - **Crash alerts** (`app/alerts.py`): a logging handler sends every ERROR to Telegram (the same error at most every
   30 min, at most 10 per hour, secret values replaced by •••); an asyncio exception handler logs crashed
   background tasks so they're alerted too. Logs: Railway → Deployments → Logs, or `railway logs`.
+- **Public copy and template:** the private repository (`personal-assistant`) stays the working copy with its
+  history. The public `lucy-ai-assistant` was created from the current files as a single commit (`git archive` →
+  new repository), so nothing from the history (old emails, numbers) is public. Before that, every tracked file was
+  scanned for personal data (emails, phone numbers, IDs, the Railway domain, friends' names, Notion page names).
+  The Railway template comes from a separate project, `lucy-template`, with no secrets: one service from the public
+  repository, healthcheck `/health`, restart on failure, one replica, a public domain on port 8080 (the Dockerfile
+  defaults to 8080 when `PORT` is missing). `templateGenerate` (Railway API) needs the repository to be visible to
+  Railway's GitHub app (GitHub → Settings → Applications → Railway → Repository access; GitHub asks to confirm access
+  by email first). Variables, descriptions and defaults were pasted as JSON into the template editor's Raw Editor
+  (`{"NAME": {"value": "...", "description": "..."}}`; `${{secret(48)}}` generates a secret); "optional" isn't read
+  from the JSON, so each optional variable was ticked in the editor. Name and description are in Template Settings
+  (description ≤ 75 characters). The template isn't listed in Railway's marketplace; the link works for everyone.
 - **Costs** (`app/costs.py`, table `usage`): prices per 1M tokens from Google's pricing page (Flash 3.8 doubles on
   2027-01-01, built in). Text calls are priced from `usage_metadata`; Gemini Live reports usage per turn (including the
   context), split into text and audio; embeddings are estimated (about 4 characters per token); images per image;
@@ -600,4 +613,5 @@ Wherever you are:
 | 12 | Voicemail detection on `machine_start` | `DetectMessageEnd`: hang up only after a finished greeting (`machine_end_*`) or a fax | The early guess hung up a Ukrainian call after 4 s that may have been a person |
 | 13 | Six database tables | Added `usage` (one row per priced call) | Cost tracking and the daily limit need history that survives redeploys |
 | 13 | Prompt-injection protection by prompt | Prompt rule + taint tracking + an owner-intent check before risky actions | A prompt alone can be argued with; the check never sees the injected text |
+| 13 | Railway template from the working project | A separate secret-free `lucy-template` project linked to a fresh public repository | The working project holds real keys and points at the private repository with personal history |
 
