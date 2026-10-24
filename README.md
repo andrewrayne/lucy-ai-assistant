@@ -1,5 +1,7 @@
 # Lucy: a personal AI assistant
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/EkjrZZ)
+
 A personal AI assistant with one brain and one memory in the cloud, and three ways to reach her:
 
 - **Telegram:** chat, voice notes, photos, documents, and voice calls (a Mini App call button).
@@ -28,8 +30,10 @@ This README is the short version: how to get your own copy running.
 
 ## Quick start
 
-1. **Get your copy of the code:** fork this repository (or click "Deploy on Railway" if a template link is
-   provided below; it creates the project and asks for the variables).
+1. **Get your copy:** click **Deploy on Railway** above. It creates the project from
+   [the public repository](https://github.com/andrewrayne/lucy-ai-assistant) and asks for the variables (five are
+   required, the rest have defaults or are optional; `JARVIS_TOKEN` and `AGENTS_TOKEN` are generated for you). Or
+   fork the repository and deploy it yourself (step 5).
 2. **Telegram:** create a bot with [@BotFather](https://t.me/BotFather) → `TELEGRAM_BOT_TOKEN`. Your own numeric
    ID (ask [@userinfobot](https://t.me/userinfobot)) → `OWNER_TELEGRAM_ID`. The bot answers only this ID.
 3. **Gemini:** create an API key in Google AI Studio and turn on billing → `GEMINI_API_KEY`. Model names change
@@ -109,7 +113,7 @@ Code map: `app/bot` (Telegram), `app/agent` (text agent and prompt), `app/tools`
 registry for every channel), `app/live` (voice: Telegram call, Jarvis, phone), `app/memory`, `app/scheduler`,
 `app/web` (HTTP routes), `jarvis/` (Swift Mac app), `supabase/migrations`.
 
-## Make it a one-click template (for sharing)
+## Make your own one-click template (for sharing a fork)
 
 1. Make sure no personal data is in the repository (`.env` is git-ignored; use placeholders in docs and tests).
    Publish a clean public copy (a new repository without your private history is safest).
