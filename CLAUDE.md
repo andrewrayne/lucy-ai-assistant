@@ -27,9 +27,9 @@ This project accompanies a YouTube tutorial, so keep the code clean, readable an
 | Database | Supabase Postgres + pgvector |
 | Text model | Gemini Flash with function calling |
 | Voice | Gemini Live API (Telegram Mini App call, Jarvis, Twilio phone calls) |
-| Computer control | Gemini Computer Use model (in Jarvis) |
+| Computer control | Gemini Flash with screenshots (in Jarvis; check whether a Computer Use model is available) |
 | Embeddings | Gemini embedding model |
-| Voice replies in Telegram | Gemini TTS |
+| Images | Gemini Flash Image |
 | Research | Gemini with Google Search grounding |
 | Phone | Twilio number + Media Streams |
 | Mac client | Swift / SwiftUI menu bar app |
@@ -40,7 +40,7 @@ This project accompanies a YouTube tutorial, so keep the code clean, readable an
 - **Device tools:** when Jarvis is connected over WebSocket it registers extra tools (screenshot, click, type, open URL, Spotify). If it is offline, the assistant says so instead of failing silently.
 - **Memory:** every message from every channel (Telegram text, voice notes, calls, Jarvis) goes to `messages` with an embedding. Relevant memories, lessons and recent history are added to each request.
 - **Self-learning:** corrections are saved to `lessons` and injected into the system prompt. The assistant creates new skills with `create_skill` on its own.
-- **No confirmation steps in the product:** the assistant acts on requests directly (sends email, creates events, deletes, calls) without confirmation buttons.
+- **No confirmation steps in the product:** the assistant acts on requests directly (sends email, creates events, deletes, calls) without confirmation buttons. Two safety exceptions: after reading outside content (email, web, documents) risky actions pass an owner-intent check in code (`app/security.py`); and by voice on the Mac, where a misheard phrase can't be reviewed, Lucy asks once before sending email, deleting, buying or posting.
 
 ## Suggested layout
 
@@ -52,6 +52,8 @@ This project accompanies a YouTube tutorial, so keep the code clean, readable an
   tools/        one module per integration
   memory/       Supabase access, embeddings, search
   scheduler/    morning brief, reminders, backups
+  integrations/ thin REST clients (Google, Twilio)
+  security.py   prompt-injection check · costs.py spending and daily limit · alerts.py crash alerts
   web/          Telegram Mini App (call screen)
 /jarvis         Swift Mac app
 /supabase       SQL migrations
@@ -64,7 +66,7 @@ This project accompanies a YouTube tutorial, so keep the code clean, readable an
 - **Google OAuth:** the consent screen must be "In production"; in "Testing" refresh tokens expire after 7 days. YouTube APIs need the account that owns the channel (possibly a brand account).
 - **Gemini TTS / Live audio:** output is raw PCM (24 kHz). Telegram voice notes need OGG/Opus. Live input is 16 kHz PCM. Twilio Media Streams are 8 kHz μ-law. Convert explicitly.
 - **Gemini Live:** enable session resumption and context window compression so long calls do not drop.
-- **Computer Use:** verify the current Gemini Computer Use model handles full macOS, not only the browser. Fallback: screenshot → Gemini returns coordinates → click via the Accessibility API.
+- **Computer Use:** verify the current Gemini Computer Use model handles full macOS, not only the browser. Fallback (what the build uses): screenshot → Gemini Flash returns one action with coordinates → Jarvis clicks/types with CGEvent.
 - **Spotify:** control the local app via AppleScript; the Web API playback endpoints require Premium.
 - **External data without keys:** weather from Open-Meteo, currency rates from Frankfurter, news via Gemini with Google Search.
 
@@ -74,11 +76,11 @@ When an implementation differs from `PLAN.md` (a different service, model or app
 
 ## Database tables
 
-`messages`, `memories`, `lessons`, `skills`, `reminders`, `agent_runs`. Schema changes only through migrations in `/supabase`.
+`messages`, `memories`, `lessons`, `skills`, `reminders`, `agent_runs`, `owner_settings`, `usage`. Schema changes only through migrations in `/supabase` (applied with `scripts/migrate.py`); new tables need an explicit grant for `service_role`.
 
 ## Environment variables
 
-`GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `OWNER_TELEGRAM_ID`, `JARVIS_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `NOTION_TOKEN`, `GITHUB_TOKEN`, `TWILIO_*`, `OWNER_TIMEZONE`. Keep `.env.example` up to date.
+`GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `OWNER_TELEGRAM_ID`, `OWNER_TIMEZONE`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `NOTION_TOKEN`, `NOTION_DEFAULT_PAGE_ID`, `NOTION_IDEAS_DATABASE_ID`, `GITHUB_TOKEN`, `AGENTS_TOKEN`, `JARVIS_TOKEN`, `TWILIO_*`, `OWNER_NAME`, `OWNER_PHONE_NUMBER`, `OWNER_CALL_PIN`, `DAILY_COST_LIMIT_USD`, plus optional model and voice settings. Keep `.env.example` up to date (it lists them all, grouped by stage).
 
 ## Workflow
 

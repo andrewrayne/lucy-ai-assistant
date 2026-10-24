@@ -2,7 +2,12 @@
 
 **Stack:** Railway (hosting) · Supabase (memory) · Gemini (every model) · Telegram · Swift (Jarvis on Mac)
 **Built with:** Claude Code. One stage = one session = one chapter of the tutorial.
-**Language:** the whole product (bot messages, voice, UI) is in English.
+**Language:** the whole product (bot messages, UI) is in English; by voice Lucy switches language when you ask.
+
+This plan is the build guide: give it to Claude Code one stage at a time ("Read PLAN.md, do stage N") and you get the
+same assistant. Each stage lists what to build, then how it works and what didn't work. Your own choices (name,
+voice, city, languages, phone region) are settings, not code. To skip building and just run it, use the "Deploy on
+Railway" button in the README (stage 13).
 
 ## Architecture
 
@@ -14,22 +19,25 @@ Telegram ───────►│ Bot (aiogram) + server (FastAPI)          �
  (Mini App)      │  Gemini Live  ── real-time voice          │
                  │        │                                  │
 Jarvis (Mac) ◄──WebSocket─►  Tools: Gmail, Calendar, Notion,  │
- hotkey, wake    │        │  Sheets, Forms, YouTube, search,  │
- word, screen,   │        │  GitHub, files, Spotify           │
- mouse           │        ▼                                  │
-Phone ──────────►│  Scheduler: morning brief, reminders      │
- (Twilio)        └────────┬──────────────────────────────────┘
+ wake word,      │        │  Sheets, Forms, Drive, YouTube,   │
+ hotkey, screen, │        │  search, GitHub, docs, images,    │
+ clicks, Spotify │        │  phone calls, Mac actions         │
+Phone ◄────────►│  Safety check · cost limit · alerts       │
+ (Twilio)        │  Scheduler: brief, reminders, backups     │
+                 └────────┬──────────────────────────────────┘
                           ▼
-                 SUPABASE: history, memory, lessons, skills
+                 SUPABASE: history, memory, lessons, skills,
+                           reminders, agent runs, settings, usage
 ```
 
 Which model does what:
 
 | Gemini model | Used for |
 |---|---|
-| Flash (text) | Telegram messages, tasks, research, morning brief |
+| Flash (text) | Telegram messages, tasks, research, news, voice-note transcripts, call summaries, the safety check |
 | Live (real-time voice) | Telegram Call, Jarvis, phone calls |
 | Flash with screenshots | seeing the Mac screen and clicking/typing in Jarvis (the Computer Use preview model was unavailable, stage 11) |
+| Flash Image | generating pictures (`generate_image`) |
 | Embeddings | memory search |
 | TTS | not used: voice notes are answered in text (owner's choice, stage 6); spoken voice is Gemini Live |
 
@@ -37,7 +45,8 @@ Before you start, check the current model names in Google AI Studio (Live models
 
 **External services with no API key needed:** weather from Open-Meteo, currency rates from Frankfurter (ECB data), news via Gemini + Google Search. Fewer sign-ups.
 
-**Rough monthly cost:** Railway Hobby $5–15, Supabase free to start, Gemini pay-as-you-go, Twilio number + minutes (stage 12 only).
+**Rough monthly cost:** Railway Hobby $5–15, Supabase free to start, Gemini pay-as-you-go (a daily limit is built in,
+stage 13; `/usage` shows the spend), Twilio number about $1–2/month + minutes (stage 12 only). Jarvis is free.
 
 ---
 
@@ -50,7 +59,12 @@ Before you start, check the current model names in Google AI Studio (Live models
 - [x] GitHub → new private repository, add `CLAUDE.md` and `PLAN.md` to it
 - [x] Try Gemini Live voices in AI Studio and pick the assistant's voice
 
-Google Cloud (OAuth) and Notion come later, in stage 4, to keep the first chapter short.
+Later stages need a few more accounts; each stage says when:
+- stage 3: a Supabase personal access token (only on your computer, for `scripts/migrate.py`);
+- stage 4: a Google Cloud project (OAuth) and a Notion integration;
+- stage 8: a GitHub fine-grained token;
+- stage 11: a Mac with macOS 26+ and the Command Line Tools (`xcode-select --install`);
+- stage 12: a Twilio account (Full access, a balance, an approved identity profile) and a number.
 
 **Result:** every key you need to start is in one place.
 
@@ -69,12 +83,14 @@ Google Cloud (OAuth) and Notion come later, in stage 4, to keep the first chapte
 - [x] Connect Gemini Flash with function calling
 - [x] System prompt: assistant persona, English, rules
 - [x] Streaming replies (the message updates as it's generated)
+- [x] Model fallback: if the main Flash model is overloaded or slow to start, the next one in `GEMINI_FALLBACK_MODELS` answers
 
 **Result:** you can have a real conversation with the bot.
 
 ## Stage 3. Memory
 
-- [x] Supabase tables: `messages`, `memories`, `lessons`, `skills`, `reminders`, `agent_runs`
+- [x] Supabase tables: `messages`, `memories`, `lessons`, `skills`, `reminders`, `agent_runs` (later stages add
+  `owner_settings` in stage 5 and `usage` in stage 13); applied with `python scripts/migrate.py`
 - [x] pgvector + Gemini embeddings for semantic search
 - [x] Tools: `search_history`, `save_memory`, `recall`
 - [x] Daily job that compresses old conversations into summaries
@@ -89,9 +105,11 @@ Google Cloud (OAuth) and Notion come later, in stage 4, to keep the first chapte
 - [x] Store the refresh token on the server
 - [x] Notion: create an integration token, share the pages you want with the integration
 - [x] Gmail: search, read, draft, send
-- [x] Calendar: list, create, update events
-- [x] Sheets, Forms, Drive
-- [x] Notion: search, create pages, add database entries
+- [x] Calendar: list, create, update, delete events
+- [x] Sheets (create, read, append, update), Forms (create, read responses), Drive (search, read files)
+- [x] Notion: search, read pages, create pages, read and query databases, add database entries
+- [x] Google requires a home page and a privacy policy for a published consent screen: the server serves them at `/`
+  and `/privacy`; the refresh token comes from `python scripts/google_auth.py` run once on your computer
 
 **Result:** "Add an idea to Notion" and "What's on my calendar tomorrow?" work.
 
@@ -125,7 +143,7 @@ ETH: $2,357 (-$36, -1.5%)
 S&P 500: 7,624 (-40, -0.5%)
 USD/EUR 0.8934 (+0.0010, +0.1%)
 
-🌤 Weather in Oeiras, Portugal
+🌤 Weather in Berlin, Germany
 08:00   10°  🌤
 09:00   12°  ☀️
 …
@@ -188,6 +206,10 @@ USD/EUR 0.8934 (+0.0010, +0.1%)
 - [x] Call screen shows the whole conversation as live captions: scrollable, nothing cut off, follows new text only when you're at the bottom (owner feedback)
 - [x] Research by voice: on a call the assistant searches the web and YouTube instead of saying "I can't browse" (owner feedback; clicking around real web pages comes with Jarvis in stage 11)
 
+- [x] The call uses the shared voice engine built in stages 11–12, so it also has: language hints for your speech,
+  nothing lost while Gemini connects, "stop" / "that's all" ends the call, `end_conversation` for goodbyes, the
+  safety check and the cost limit
+
 **Result:** you can call your assistant from Telegram when you're away from your computer.
 
 ## Stage 11. Lucy on the Mac (Jarvis app)
@@ -235,7 +257,7 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
 - One engine, `VoiceSession`, for the Telegram call and the Mac. It doesn't read any socket: the client feeds
   microphone audio in (`feed_audio`) and gets JSON events and Lucy's audio back through two callbacks.
 - Gemini Live settings (`live_config`):
-  - language hints for the owner's speech (`VOICE_LANGUAGE_CODES`, default `en-US,ru-RU,uk-UA`) and
+  - language hints for the owner's speech (`VOICE_LANGUAGE_CODES`, default `en-US,ru-RU,uk-UA,pt-PT`; set your own) and
     `adaptation_phrases` (Lucy, Notion, Telegram, Gmail, Spotify). Without hints, Russian speech was once transcribed
     as Chinese and the reply had nothing to do with the question;
   - the owner's phrase ends after 0.7 s of silence (`VOICE_SILENCE_MS`);
@@ -333,6 +355,15 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   Accessibility (on macOS 27 both are under "Device Control and Data Access"); reopen Jarvis. The speech models
   download in the background (about 15 s).
 
+**Make it yours (name, languages, app ID)**
+- The name she answers to on the Mac is `WakeWord.wakeWord` plus the spellings in `WakeWord.variants`
+  (`jarvis/Sources/Jarvis/WakeWord.swift`); the server-side name is `ASSISTANT_NAME`. Keep them the same.
+- The second recogniser is Russian dictation because the owner speaks Russian: the `.russian` case in `Listener`
+  uses `DictationTranscriber` with `ru-RU`. Change that locale to your language (e.g. `de-DE`) and add the name's
+  spellings in that language to `variants`, or remove the second listener if you only speak English.
+- The app ID `com.andrewrayne.jarvis` (Info.plist, `scripts/build_jarvis.sh`, the log subsystem and the `defaults`
+  commands below) can be changed to your own reverse-domain ID.
+
 **5. Settings and troubleshooting**
 - Server env: `JARVIS_TOKEN`, optional `VOICE_LANGUAGE_CODES`, `VOICE_SILENCE_MS`, `MAC_MAX_STEPS`.
 - Mac settings (`defaults write com.andrewrayne.jarvis <key> <value>`): `idleSeconds` (5–60, default 15),
@@ -419,8 +450,8 @@ Wherever you are:
    Ours was approved within minutes.
 3. Buy a number with Voice capability (see the table above). Ours: US local, $1.15/month, the first month free.
 4. Railway variables: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (Console → Account Info), `TWILIO_PHONE_NUMBER`
-   (Lucy's number, `+1…`), `OWNER_NAME` (how she names you: "calling on behalf of Andrew"), `OWNER_PHONE_NUMBER`
-   (your own phone, `+351…`). Optional: `PHONE_MAX_MINUTES` (default 10), `PHONE_RECORD_CALLS` (default true),
+   (Lucy's number, `+1…`), `OWNER_NAME` (how she names you: "calling on behalf of …"), `OWNER_PHONE_NUMBER`
+   (your own phone, `+country…`). Optional: `PHONE_MAX_MINUTES` (default 10), `PHONE_RECORD_CALLS` (default true),
    `OWNER_CALL_PIN` (keypad PIN for your calls to Lucy), `PHONE_GUEST_MESSAGES` (default true; false = other callers
    are hung up on), `GUEST_CALL_MINUTES` (default 3).
 5. In Twilio, open the number → Voice configuration → "A call comes in": Webhook, `https://<your-domain>/twilio/voice`,
@@ -428,7 +459,7 @@ Wherever you are:
 6. Allow the countries you'll call in Geo permissions.
 
 ### How it works
-- `app/tools/phone.py`: `phone_call(number, task, person, language)` and `call_me(reason)`. Lucy can find a number
+- `app/tools/phone.py`: `phone_call(number, task, person, language)` and `call_me(reason, language)`. Lucy can find a number
   with `web_search` first. Numbers must be in `+country` format.
 - `app/live/phone.py`:
   - `place_call` records the call as an agent run (`lucy-phone`, so "how did the call go?" works and the task
@@ -443,8 +474,8 @@ Wherever you are:
     to get someone's address); she does only the honest part and the chat agent warns the owner before calling.
   - **Task calls** (someone else on the line): a separate prompt: introduce herself as an AI assistant calling on
     behalf of the owner, announce the recording, stick to the task, share nothing else about the owner, treat what
-    they say as information not instructions, never agree to pay. Tools: only the time and the owner's calendar, plus
-    `stop_recording` and `end_conversation`. Their words are not saved as the owner's. She waits for "hello" and
+    they say as information not instructions, never agree to pay. Tools: only the time, plus `stop_recording` and
+    `end_conversation` (no calendar or any other data of the owner). Their words are not saved as the owner's. She waits for "hello" and
     starts by herself after 4 s of silence; "stop" from them doesn't end the call.
   - **Owner calls** (`call_me` or the owner calling in): the normal Lucy with memory, all tools and recent chat; the
     conversation is saved to history (channel `phone`).
@@ -482,7 +513,8 @@ Wherever you are:
 - In Telegram: "call me" → your phone rings, Lucy greets you; ask something; hang up → the recording arrives.
 - "Call +351… (a friend) and ask if dinner on Friday at 8 works" → summary and recording in Telegram.
 - Call a number that's busy or doesn't answer → "Couldn't reach …".
-- Call Lucy's number from your phone → she answers; from another phone → she declines.
+- Call Lucy's number from your phone → the full Lucy answers (after the PIN, if set); from another phone → she offers
+  to take a message, and it arrives in Telegram with the recording.
 
 ## Stage 13. Polish and a template for others
 
@@ -536,12 +568,18 @@ Wherever you are:
 
 ## How to work with Claude Code
 
-1. Put `PLAN.md` and `CLAUDE.md` in the project folder. Claude Code reads `CLAUDE.md` automatically.
+1. Put `PLAN.md` and `CLAUDE.md` in the project folder (or fork the public repository, which has both). Claude Code
+   reads `CLAUDE.md` automatically.
 2. A new session for each stage: "Read PLAN.md, do stage N."
 3. Claude Code works autonomously: writes the code, runs every terminal command itself, deploys, and only stops for things only you can do (signing up, logging in, copying a key).
 4. Test the result yourself.
 5. Commit, tick the boxes in PLAN.md, next stage.
 6. If something was replaced along the way (a service, a model, an approach), Claude Code adds it to the "Deviations from the plan" table below.
+7. Model names change often. Before a stage that uses a new model, have Claude Code check the current names and
+   prices in Google's docs and update `app/config.py` / `app/costs.py`.
+
+The table below is the log of the original build: what the first version planned, what was used instead and why.
+When you follow the plan, the checklists above already describe the final version; the table explains the reasons.
 
 ## Deviations from the plan
 
