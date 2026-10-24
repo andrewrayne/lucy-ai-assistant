@@ -321,5 +321,6 @@ def test_alternative_caller_id_for_ukraine(monkeypatch):
     monkeypatch.setattr(s, "alt_caller_id", "")
     assert twilio.caller_id_for("+380991234567") == "+15550000001"
     monkeypatch.setattr(s, "alt_caller_id", "+351910000001")
+    monkeypatch.setattr(s, "alt_caller_id_prefixes", "+380")
     assert twilio.caller_id_for("+380991234567") == "+351910000001"
     assert twilio.caller_id_for("+48600000001") == "+15550000001"

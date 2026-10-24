@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     gemini_live_model: str = "gemini-3.8-live"
     max_call_minutes: int = 60
     # Languages the owner may speak (hints for Gemini Live's speech recognition; replies stay in English).
-    voice_language_codes: str = "en-US,ru-RU,uk-UA,pt-PT"
+    voice_language_codes: str = "en-US"
     # Pause (ms) that ends the owner's phrase in a voice conversation.
     voice_silence_ms: int = 700
     # Voice for Gemini Live and TTS. "Achernar" is Gemini's soft female voice.
@@ -70,9 +70,9 @@ class Settings(BaseSettings):
     phone_guest_messages: bool = True
     guest_call_minutes: int = 3
     # Optional second caller ID (e.g. the owner's own mobile, verified in Twilio) for countries whose networks reject
-    # calls from Lucy's number. Ukrainian networks rejected every call from a US number (SIP 486/480).
+    # calls from Lucy's number (comma-separated prefixes, e.g. "+44,+49").
     alt_caller_id: str = ""
-    alt_caller_id_prefixes: str = "+380"
+    alt_caller_id_prefixes: str = ""
     phone_max_minutes: int = 10
     phone_record_calls: bool = True
 

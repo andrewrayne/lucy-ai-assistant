@@ -6,12 +6,15 @@ import Speech
 /// - Runs entirely on the Mac: nothing is sent anywhere before the name is heard, and it costs nothing.
 /// - Doesn't need macOS Dictation to be on (the older SFSpeechRecognizer did, and refused to run).
 /// - Two independent recognisers, each with its own analyzer (in one analyzer the second never produced results):
-///   English (SpeechTranscriber) and a far-field Russian dictation model, so the name is caught whether it's
-///   said in an English or a Russian sentence. The English model never writes the Cyrillic spelling.
+///   English (SpeechTranscriber) and a far-field dictation model for the owner's second language (`secondLocale`),
+///   so the name is caught in either language. The English model never writes the name the way another language does.
 /// - A speech detector skips silence; partial (volatile) results catch the name quickly.
 /// - The speech models are downloaded from Apple once, the first time.
 final class WakeWord {
     static let wakeWord = "Lucy"
+    /// The owner's second language for the wake word (a far-field dictation model). Change it to yours, add the
+    /// name's spellings in that language to `variants`, or remove the second listener if you only speak English.
+    static let secondLocale = "ru-RU"
 
     var onWake: (() -> Void)?
     /// Short status for the menu ("listening", "downloading speech model…", an error).
@@ -39,8 +42,8 @@ final class WakeWord {
         generation += 1
         let current = generation
         let english = Listener(.english)
-        let russian = Listener(.russian)
-        let all = [english, russian]
+        let second = Listener(.second)
+        let all = [english, second]
         lock.withLock { listeners = all }
         for listener in all {
             listener.onText = { [weak self] text in self?.check(text, current) }
@@ -95,10 +98,10 @@ final class WakeWord {
 
 /// One on-device recogniser with its own SpeechAnalyzer and audio stream.
 private final class Listener {
-    enum Language { case english, russian }
+    enum Language { case english, second }
 
     let language: Language
-    var name: String { language == .english ? "English" : "Russian" }
+    var name: String { language == .english ? "English" : "second-language" }
     var onText: ((String) -> Void)?
 
     private let lock = NSLock()
@@ -124,9 +127,9 @@ private final class Listener {
                     for try await result in module.results { self?.onText?(String(result.text.characters)) }
                 } catch { say("Jarvis: English recogniser stopped: \(error.localizedDescription)") }
             }
-        case .russian:
-            guard let locale = await DictationTranscriber.supportedLocale(equivalentTo: Locale(identifier: "ru-RU")) else {
-                say("Jarvis: Russian dictation model not available on this Mac")
+        case .second:
+            guard let locale = await DictationTranscriber.supportedLocale(equivalentTo: Locale(identifier: WakeWord.secondLocale)) else {
+                say("Jarvis: dictation model for \(WakeWord.secondLocale) not available on this Mac")
                 return
             }
             let module = DictationTranscriber(locale: locale, contentHints: [.farField, .shortForm], transcriptionOptions: [],
@@ -135,7 +138,7 @@ private final class Listener {
             resultsTask = Task { [weak self] in
                 do {
                     for try await result in module.results { self?.onText?(String(result.text.characters)) }
-                } catch { say("Jarvis: Russian recogniser stopped: \(error.localizedDescription)") }
+                } catch { say("Jarvis: second-language recogniser stopped: \(error.localizedDescription)") }
             }
         }
 

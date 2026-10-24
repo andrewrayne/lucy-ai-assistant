@@ -128,7 +128,7 @@ Later stages need a few more accounts; each stage says when:
 - **Built from a fixed template**, not written by the AI: same layout every day, ready in under a second, no "please wait" message.
 - **Sources (no API keys):**
   - Tasks: today's Google Calendar events only (start = end = today)
-  - Markets: BTC and ETH from CoinGecko (24h change), S&P 500 from the Yahoo Finance chart API (vs previous close), USD/EUR from Frankfurter / ECB (vs previous day). Configurable: `BRIEF_CRYPTO`, `BRIEF_INDEXES`, `BRIEF_CURRENCIES` (the ECB has no UAH)
+  - Markets: BTC and ETH from CoinGecko (24h change), S&P 500 from the Yahoo Finance chart API (vs previous close), USD/EUR from Frankfurter / ECB (vs previous day). Configurable: `BRIEF_CRYPTO`, `BRIEF_INDEXES`, `BRIEF_CURRENCIES`
   - Weather: Open-Meteo hourly forecast for the owner's current city, 08:00–22:00, with day/night emoji
 - If one source fails, its section says "unavailable" and the rest still goes out.
 - **Layout** (plain text so `/news` is tappable):
@@ -216,16 +216,17 @@ USD/EUR 0.8934 (+0.0010, +0.1%)
 
 A menu bar app called Jarvis. Say "Lucy" (or press ⇧E), speak in any language, and Lucy answers in English with the
 same memory and tools as in Telegram, plus eyes and hands on the Mac. Actions happen silently; she speaks only to
-answer a question. The wake word and microphone handling follow the owner's earlier, working assistant (Katya).
+answer a question. The wake word and microphone handling follow an earlier voice assistant the owner had already built and used.
 
 - [x] Swift menu bar app, English UI (Swift Package in `/jarvis`, built without Xcode), starts at login
 - [x] One WebSocket to the server (`/ws/jarvis`, `JARVIS_TOKEN`): same memory and tools; the Gemini key stays on the server
-- [x] Wake word "Lucy" / "Люси" on the Mac, free and offline (Apple SpeechAnalyzer; works without macOS Dictation)
+- [x] Wake word "Lucy" on the Mac, in English and in the owner's second language, free and offline (Apple
+  SpeechAnalyzer; works without macOS Dictation)
 - [x] Hotkey ⇧E: start talking without the wake word; cuts Lucy off while she speaks; otherwise ends the conversation
 - [x] Same Gemini Live model and voice as the Telegram Call (`gemini-3.8-live`, Achernar); understands the owner's language, answers in English
 - [x] Interrupt Lucy by voice: just start talking while she speaks (tested by the owner)
 - [x] Actions run silently ("open Spotify", "volume 30", "add a reminder"); Lucy speaks only to answer or to say an action failed
-- [x] "Stop", "okay, that's all", "окей, всё" end the conversation silently
+- [x] "Stop", "okay, that's all" (and the same in the owner's other languages) end the conversation silently
 - [x] Screen: `look_at_screen` answers about what's on the screen
 - [x] Control: `mac_open`, `mac_quit_app`, `mac_volume`, `mac_media`, `mac_system`, and `mac_do` for multi-step clicking and typing
 - [x] Spotify: "play Miyagi I Got Love" finds and plays it (tested by the owner)
@@ -257,9 +258,9 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
 - One engine, `VoiceSession`, for the Telegram call and the Mac. It doesn't read any socket: the client feeds
   microphone audio in (`feed_audio`) and gets JSON events and Lucy's audio back through two callbacks.
 - Gemini Live settings (`live_config`):
-  - language hints for the owner's speech (`VOICE_LANGUAGE_CODES`, default `en-US,ru-RU,uk-UA,pt-PT`; set your own) and
-    `adaptation_phrases` (Lucy, Notion, Telegram, Gmail, Spotify). Without hints, Russian speech was once transcribed
-    as Chinese and the reply had nothing to do with the question;
+  - language hints for the owner's speech (`VOICE_LANGUAGE_CODES`, default `en-US`; add every language you speak, e.g. `en-US,es-ES`)
+    and `adaptation_phrases` (Lucy, Notion, Telegram, Gmail, Spotify). Without hints, the owner's speech in another
+    language was once transcribed as Chinese and the reply had nothing to do with the question;
   - the owner's phrase ends after 0.7 s of silence (`VOICE_SILENCE_MS`);
   - sliding-window context compression and session resumption, so long conversations don't drop;
   - all registry tools plus `end_conversation`.
@@ -274,10 +275,10 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   `done: false`) is sent with `WHEN_IDLE`, so she says what went wrong. "What's playing?" (`spotify now_playing`) is a
   question and is answered normally. Tested with gemini-3.8-live: with ordinary (blocking) calls she stayed quiet but
   called "open Spotify" 8 times; non-blocking + silent gave one call and silence.
-- Backup for silence (from Katya): right after an action, Lucy's voice is held for up to 8 s. More than 4 words means
+- Backup for silence (from the owner's earlier assistant): right after an action, Lucy's voice is held for up to 8 s. More than 4 words means
   a real answer and it plays; a short "Done" / "Opening it" that ends the turn is dropped.
-- **Ending silently:** a phrase of up to 4 words with "stop" / "enough" / "хватит" / "стоп", or "okay, that's all" /
-  "окей, всё" (after filler words like okay/thanks/Lucy are removed) ends the conversation 0.9 s after it's said if
+- **Ending silently:** a phrase of up to 4 words with "stop" / "enough", or "okay, that's all" (and their
+  equivalents in your languages in `STOP_WORDS` / `END_PHRASES`, after filler words like okay/thanks/Lucy are removed) ends the conversation 0.9 s after it's said if
   nothing follows. `end_conversation` (for "bye", "thanks, that's it") hangs up at once. Neither says goodbye.
 - Hanging up never waits for Gemini (it can stay silent): the receive loop is cancelled and whatever was said is
   saved to memory (channel `jarvis` for the Mac, `call` for Telegram).
@@ -319,9 +320,10 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
     −36 dB) for ~250 ms means the owner is talking: her voice stops, the rest of her answer is dropped, and the last
     0.4 s of the owner's words is sent first. The first 0.7 s of each answer only teach the echo level.
 - `WakeWord.swift`: Apple's on-device **SpeechAnalyzer** with a speech detector and partial results. Two independent
-  analyzers: English (`SpeechTranscriber`) and far-field Russian dictation (`DictationTranscriber`), because "Люси"
-  and "Lucy" sound different and the English model never writes the Cyrillic name (in one analyzer the second model
-  never produced results). Matches Lucy/Lucie/Luci/Люси/Люся and similar spellings. The models download from Apple
+  analyzers: English (`SpeechTranscriber`) and far-field dictation (`DictationTranscriber`) for the owner's second
+  language (`WakeWord.secondLocale`), because the name sounds different in another language and the English model
+  never writes it that language's way (in one analyzer the second model never produced results). Matches
+  Lucy/Lucie/Luci and the spellings listed in `variants`. The models download from Apple
   once. Listens only between conversations.
 - `AppDelegate.swift`: the menu bar icon and menu (status, last caption, Talk to Lucy / End conversation, Listen for
   "Lucy", Permissions…, Quit), login item, and the conversation:
@@ -358,9 +360,8 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
 **Make it yours (name, languages, app ID)**
 - The name she answers to on the Mac is `WakeWord.wakeWord` plus the spellings in `WakeWord.variants`
   (`jarvis/Sources/Jarvis/WakeWord.swift`); the server-side name is `ASSISTANT_NAME`. Keep them the same.
-- The second recogniser is Russian dictation because the owner speaks Russian: the `.russian` case in `Listener`
-  uses `DictationTranscriber` with `ru-RU`. Change that locale to your language (e.g. `de-DE`) and add the name's
-  spellings in that language to `variants`, or remove the second listener if you only speak English.
+- The second recogniser is for the owner's second language: set `WakeWord.secondLocale` to yours (e.g. `de-DE`) and
+  add the name's spellings in that language to `variants`, or remove the second listener if you only speak English.
 - The app ID `com.andrewrayne.jarvis` (Info.plist, `scripts/build_jarvis.sh`, the log subsystem and the `defaults`
   commands below) can be changed to your own reverse-domain ID.
 
@@ -374,7 +375,7 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   tool calls, "turn complete") without the words.
 
 **6. Test**
-- "Lucy" → chime → "what's the weather?"; "Люси, какая погода?"; "Lucy, open Notion" in one breath (opens silently);
+- "Lucy" → chime → "what's the weather?"; the same in your second language; "Lucy, open Notion" in one breath (opens silently);
   ⇧E and talk; talk over Lucy during a long answer; "what's on my screen?"; "play Daft Punk on Spotify";
   "turn the volume down"; "okay, that's all" (hangs up silently); quit Jarvis and ask in Telegram "open Safari on my
   Mac" (Lucy says the Mac is offline).
@@ -400,7 +401,7 @@ and, if something was booked, a calendar event. Works in any country Twilio serv
 - [x] A Twilio number for Lucy (see "Choose your region"): a US local number, bought through the API
 - [x] Twilio Media Streams ↔ server ↔ Gemini Live (8 kHz μ-law ↔ 16/24 kHz PCM, converted on the server)
 - [x] `phone_call`: call someone and do one task → summary, recording and calendar event in Telegram (real calls to
-  Poland and Ukraine placed from Telegram; summary and calendar logic covered by tests)
+  other European countries placed from Telegram; summary and calendar logic covered by tests)
 - [x] `call_me`: Lucy calls the owner's own phone; full Lucy with memory and tools (tested: answered from memory, hung up on "that's all", recording arrived in Telegram and was deleted from Twilio)
 - [ ] The owner calls Lucy's number and talks to her (optional keypad PIN, because caller ID can be faked) — built,
   not yet tried on a real call
@@ -410,14 +411,14 @@ and, if something was booked, a calendar event. Works in any country Twilio serv
 - [x] Calls to other people get no access to the owner's data (no memory, calendar, Notion, email…)
 - [x] Portuguese: for +351 numbers she speaks European Portuguese by herself (tested: barbershop booking); without
   a language she speaks the local language of the number
-- [x] Lucy says she's an AI assistant and that the call is recorded (tested with the live model in Ukrainian and
-  Portuguese); stops recording if the other person objects (built, not tried on a call)
-- [x] Languages by voice: English by default; on request she speaks Russian or Ukrainian natively (female forms,
-  "Люси" / "Люсі"); calls to others in the language you name (tested with the live model)
+- [x] Lucy says she's an AI assistant and that the call is recorded (tested with the live model in Portuguese and
+  another language); stops recording if the other person objects (built, not tried on a call)
+- [x] Languages by voice: English by default; on request she speaks other languages natively (feminine forms, her
+  name as it's said in that language); calls to others in the language you name (tested with the live model)
 - [x] Voicemail or no answer: the owner gets "didn't pick up" or the network's reason (busy, unavailable…) instead of
   a recording (seen on real calls)
-- [x] Calls to Ukraine allowed too (about $0.31–0.41/min), but Ukrainian networks reject calls from the US number;
-  `ALT_CALLER_ID` (the owner's verified mobile for `+380`) is ready but not switched on
+- [x] Some countries' networks reject calls from a US number (seen with one European country: every call refused);
+  `ALT_CALLER_ID` (your own verified mobile) for those prefixes (`ALT_CALLER_ID_PREFIXES`) is ready for that case
 - [x] Calls to Poland allowed in Geo permissions (ordinary numbers only; premium and high-risk stay blocked); `call_me` takes a language too
 
 **Result:** "Book a table for two on Friday at 8 pm" — she calls, books, and it's in your calendar.
@@ -480,8 +481,8 @@ Wherever you are:
   - **Owner calls** (`call_me` or the owner calling in): the normal Lucy with memory, all tools and recent chat; the
     conversation is saved to history (channel `phone`).
   - Language: `phone_call(language=…)`; Lucy speaks it natively from the first word, uses feminine forms about
-    herself and her name in that language, and says explicitly that she is an AI ("ШІ-помічниця", not just
-    "virtual assistant"), then goes straight to the task. In every voice channel English is the default and she
+    herself and her name in that language, and says explicitly that she is an AI ("assistente de inteligência
+    artificial", not just "virtual assistant"), then goes straight to the task. In every voice channel English is the default and she
     switches language when the owner asks (rule in `VOICE_STYLE`). Telegram text stays English.
   - Voicemail: asynchronous answering-machine detection (`MachineDetection` + `AsyncAmd`): the call connects at once,
     Twilio reports who answered to `/twilio/amd`. A machine or fax → hang up, the owner gets "… didn't pick up", the
@@ -506,7 +507,7 @@ Wherever you are:
     message …, call back …" and the recording;
   - people Lucy calls for a task: only the time, `stop_recording` and `end_conversation`; no calendar or other data.
 - Language of a call: the one the owner asks for, otherwise the local language of the number (`LOCAL_LANGUAGES`:
-  +351 European Portuguese, +55 Brazilian Portuguese, +48 Polish, +380 Ukrainian, …). "Portuguese" for a +351 number
+  +351 European Portuguese, +55 Brazilian Portuguese, +48 Polish, +49 German, …). "Portuguese" for a +351 number
   always means European Portuguese. `VOICE_LANGUAGE_CODES` includes `pt-PT` for recognition.
 
 ### Test
@@ -604,7 +605,7 @@ When you follow the plan, the checklists above already describe the final versio
 | 5 | Recurring reminders | Cron expressions evaluated in the owner's current time zone (APScheduler `CronTrigger`), recomputed when the city changes | Handles DST and travel; the model writes cron easily |
 | 5 | Minute loop | APScheduler job inside the single replica; each due row is claimed with a conditional update before sending | No duplicate reminders even when two instances overlap during a redeploy |
 | 5 | Location sharing | Telegram location → Open-Meteo (time zone) + OpenStreetMap Nominatim (city name) | No API keys needed |
-| 5 | Brief contents | Fixed template chosen by the owner: today's events, markets (BTC/ETH via CoinGecko, S&P 500 via Yahoo Finance chart API, USD/EUR via Frankfurter) and hourly weather 08:00–22:00 for the current city; AI news moved to a tappable `/news` command (also a `get_news` tool), without source names, items separated by a blank line; no "please wait" messages | Owner's preferred layout; a template is instant and never reworded. Frankfurter's ECB data has no UAH |
+| 5 | Brief contents | Fixed template chosen by the owner: today's events, markets (BTC/ETH via CoinGecko, S&P 500 via Yahoo Finance chart API, USD/EUR via Frankfurter) and hourly weather 08:00–22:00 for the current city; AI news moved to a tappable `/news` command (also a `get_news` tool), without source names, items separated by a blank line; no "please wait" messages | Owner's preferred layout; a template is instant and never reworded |
 | 6 | Voice replies via Gemini TTS | Voice notes are answered in **text** only (no TTS in Telegram) | Owner's decision: talking by voice is for calls (stage 10); messages get text |
 | 6 | Understanding voice notes | The original recording goes to the agent with a helper transcript; the transcript is saved to memory (channel `voice`) | A real recording was transcribed only as its first phrase ("Hello Lucene"); the agent hearing the audio itself answers correctly even when the transcript is incomplete |
 | 6 | Weather in chat | Added a `get_weather` tool (Open-Meteo, current city or any city, up to 7 days) | Voice testing showed the assistant couldn't answer weather questions outside the brief |
@@ -625,7 +626,7 @@ When you follow the plan, the checklists above already describe the final versio
 | 10 | Call limits | Lucy greets first; calls end after `MAX_CALL_MINUTES` (60); GoAway or a dropped connection resumes with the session handle (up to 5 times) | Natural start, bounded cost, long calls survive server rotation |
 | 10 | Captions in the call screen | Full conversation kept and scrollable; auto-scroll only when already at the bottom; text wraps instead of being clipped | Owner feedback: captions were cut off and couldn't be scrolled |
 | 10 | "Open YouTube and research" by voice | Prompt rule: never say "I can't browse", search instead (`web_search`, `youtube_search`, `deep_research`); new `youtube_search` tool | Owner feedback: on a call the assistant refused a research request it could do with search |
-| 11 | Wake word with Porcupine / openWakeWord, "Hey Jarvis" | "Lucy" (owner's choice) with Apple's on-device SpeechAnalyzer: English + far-field Russian recognisers in separate analyzers, speech detector, partial results | Free, offline, no extra SDK. Replaced SFSpeechRecognizer, which refuses to run with macOS Dictation off; one analyzer with two recognisers gave no Russian results |
+| 11 | Wake word with Porcupine / openWakeWord, "Hey Jarvis" | "Lucy" (owner's choice) with Apple's on-device SpeechAnalyzer: English + a far-field recogniser for the owner's second language, in separate analyzers, speech detector, partial results | Free, offline, no extra SDK. Replaced SFSpeechRecognizer, which refuses to run with macOS Dictation off; one analyzer with two recognisers gave no results from the second one |
 | 11 | Gemini Computer Use model | `mac_do`: screenshot → Gemini Flash returns one JSON action on a 0–1000 grid → Jarvis clicks/types | The Computer Use preview model returned 503 on every try |
 | 11 | Echo cancellation + talking over Lucy | No echo cancellation: mic paused while Lucy speaks; Jarvis detects the owner talking over her by comparing the mic with her known loudness (learned echo level), plus ⇧E | Apple's voice processing passed only silence from the Studio Display mic; the owner wants to interrupt by voice |
 | 11 | Raw microphone audio | First channel only, 150 Hz low-cut, automatic level (up to ×6) | Gemini Live ignored the quiet, boomy Studio Display audio |
@@ -642,13 +643,13 @@ When you follow the plan, the checklists above already describe the final versio
 | 12 | Recording | Every call recorded and announced; `stop_recording` if the other person objects; recordings deleted from Twilio after delivery | Recording consent rules (EU, some US states); less data kept |
 | 12 | μ-law conversion with `audioop` | Small pure-Python codec (`phone_audio.py`) | `audioop` was removed in Python 3.13 |
 | 12 | Buy a number right away | Twilio first requires an approved Primary Customer Profile (KYC in Trust Hub), even for US numbers | Twilio's rule since 2025-2026; the purchase API answers "Primary compliance profile is not approved" |
-| 12 | Voice in English only | English by default; native Russian/Ukrainian (or any language) on the owner's request; calls to others in the language asked | Owner's request; the product's text and UI stay English |
+| 12 | Voice in English only | English by default; native speech in any language on the owner's request; calls to others in the language asked | Owner's request; the product's text and UI stay English |
 | 12 | Voicemail | Answering-machine detection: voicemail = "didn't pick up", no message left | Owner's request: know whether the person answered |
 | 12 | Calls to a new country right after KYC | The first call to Poland failed with Twilio 20003 "Primary compliance profile is not approved" although the profile was approved; a few minutes later the same account could call Poland | Twilio needs some time after approval (or after enabling a country) before international calls unlock; just retry later |
 | 12 | Only the owner may call Lucy | Owner: full Lucy (+ optional PIN); others: guest mode that only takes a message; task calls without any owner data | Owner's request: callers must not reach his data, but people Lucy called may call back |
 | 12 | Language per call | Local language of the number by default (+351 → European Portuguese) | Owner's request: book barbershops and the like in Portuguese |
-| 12 | Calls to Ukraine | Allowed in Geo permissions, but every Ukrainian network (Vodafone +38099, Kyivstar +38096/97/98) rejected calls from the US number: SIP 486 in 1 s or 480. Option: `ALT_CALLER_ID` = the owner's own mobile, verified in Twilio, used only for `+380` | Ukrainian operators filter calls from foreign VoIP numbers (480 can mean "flagged as spam") |
-| 12 | Voicemail detection on `machine_start` | `DetectMessageEnd`: hang up only after a finished greeting (`machine_end_*`) or a fax | The early guess hung up a Ukrainian call after 4 s that may have been a person |
+| 12 | Calls to every enabled country | One country's mobile networks rejected every call from the US number: SIP 486 in 1 s or 480. Option: `ALT_CALLER_ID` = the owner's own mobile, verified in Twilio, used only for the prefixes in `ALT_CALLER_ID_PREFIXES` | Some operators filter calls from foreign VoIP numbers (480 can mean "flagged as spam") |
+| 12 | Voicemail detection on `machine_start` | `DetectMessageEnd`: hang up only after a finished greeting (`machine_end_*`) or a fax | The early guess hung up a call after 4 s that may have been a person |
 | 13 | Six database tables | Added `usage` (one row per priced call) | Cost tracking and the daily limit need history that survives redeploys |
 | 13 | Prompt-injection protection by prompt | Prompt rule + taint tracking + an owner-intent check before risky actions | A prompt alone can be argued with; the check never sees the injected text |
 | 13 | Railway template from the working project | A separate secret-free `lucy-template` project linked to a fresh public repository | The working project holds real keys and points at the private repository with personal history |

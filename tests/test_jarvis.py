@@ -164,11 +164,12 @@ def test_mac_context_lists_front_app_and_apps():
     assert mac_context({}) == ""
 
 
-def test_voice_config_has_language_hints_and_end_tool():
+def test_voice_config_has_language_hints_and_end_tool(monkeypatch):
     from app.live.call import live_config
 
+    monkeypatch.setattr(get_settings(), "voice_language_codes", "en-US,pt-PT")
     config = live_config("system", None)
-    assert "ru-RU" in config.input_audio_transcription.language_codes
+    assert config.input_audio_transcription.language_codes == ["en-US", "pt-PT"]
     names = [f.name for f in config.tools[0].function_declarations]
     assert "end_conversation" in names and "mac_volume" in names
 
