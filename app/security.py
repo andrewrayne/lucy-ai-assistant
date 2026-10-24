@@ -32,7 +32,7 @@ UNTRUSTED_TOOLS = {
 # Actions that reach other people or can't be undone: checked after untrusted content was read.
 GUARDED_TOOLS = {
     "gmail_send", "phone_call", "calendar_delete_event", "github_create_issue", "github_comment_issue",
-    "forms_create", "mac_do", "mac_open",
+    "forms_create", "mac_do", "mac_open", "notion_replace_text", "notion_delete_blocks",
 }  # fmt: skip
 
 BLOCKED = (

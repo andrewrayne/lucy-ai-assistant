@@ -1,4 +1,4 @@
-"""Notion: search, read and create pages, add entries to databases.
+"""Notion: search, read, create and edit pages, add entries to databases.
 
 Uses an internal integration token. The integration only sees pages and
 databases the owner has shared with it.
@@ -45,7 +45,7 @@ def notion_id(value: str) -> str:
 
 
 def plain(rich: list[dict]) -> str:
-    return "".join(r.get("plain_text", "") for r in rich or [])
+    return "".join(r.get("plain_text") or r.get("text", {}).get("content", "") for r in rich or [])
 
 
 def title_of(obj: dict) -> str:
@@ -102,8 +102,12 @@ def block_text(block: dict) -> str:
     data = block.get(kind, {})
     text = plain(data.get("rich_text", []))
     prefix = {
-        "heading_1": "# ", "heading_2": "## ", "heading_3": "### ",
-        "bulleted_list_item": "- ", "numbered_list_item": "1. ", "quote": "> ",
+        "heading_1": "# ",
+        "heading_2": "## ",
+        "heading_3": "### ",
+        "bulleted_list_item": "- ",
+        "numbered_list_item": "1. ",
+        "quote": "> ",
         "to_do": "- [x] " if data.get("checked") else "- [ ] ",
     }.get(kind, "")
     if kind == "child_page":
@@ -202,9 +206,157 @@ async def notion_search(query: str = "", only: str = "") -> dict:
 async def notion_read_page(page: str) -> dict:
     pid = notion_id(page)
     meta = await notion("GET", f"/pages/{pid}")
-    children = await notion("GET", f"/blocks/{pid}/children?page_size=100")
-    lines = [t for t in (block_text(b) for b in children.get("results", [])) if t]
-    return {"title": title_of(meta), "url": meta.get("url", ""), "content": "\n".join(lines)[:12000], "note": UNTRUSTED}
+    blocks = await all_blocks(pid)
+    lines = [("  " * b["_depth"]) + t for b in blocks if (t := block_text(b))]
+    return {"title": title_of(meta), "url": meta.get("url", ""), "content": "\n".join(lines)[:20000], "note": UNTRUSTED}
+
+
+# ---------- editing existing pages ----------
+
+# Blocks whose text lives in "rich_text" and can be edited in place.
+TEXT_BLOCKS = {
+    "paragraph", "heading_1", "heading_2", "heading_3", "bulleted_list_item", "numbered_list_item",
+    "to_do", "quote", "callout", "toggle",
+}  # fmt: skip
+MAX_BLOCKS = 1500
+
+
+async def all_blocks(block_id: str, depth: int = 0) -> list[dict]:
+    """Every block of a page in reading order, including nested ones (toggles, columns), past the 100-block page
+    size. Sub-pages and databases are listed but not opened."""
+    out, cursor = [], None
+    while len(out) < MAX_BLOCKS:
+        query = f"/blocks/{block_id}/children?page_size=100" + (f"&start_cursor={cursor}" if cursor else "")
+        data = await notion("GET", query)
+        for block in data.get("results", []):
+            block["_depth"] = depth
+            out.append(block)
+            if block.get("has_children") and block["type"] not in ("child_page", "child_database") and depth < 4:
+                out.extend(await all_blocks(block["id"], depth + 1))
+        if not data.get("has_more"):
+            break
+        cursor = data.get("next_cursor")
+    return out[:MAX_BLOCKS]
+
+
+def _pattern(find: str, regex: bool, match_case: bool) -> re.Pattern:
+    flags = 0 if match_case else re.IGNORECASE
+    return re.compile(find if regex else re.escape(find), flags)
+
+
+def edit_rich_text(rich: list[dict], pattern: re.Pattern, replace: str) -> list[dict] | None:
+    """Apply a replacement inside each text run, keeping bold/italic/links. None if nothing changed."""
+    changed, out = False, []
+    for run in rich:
+        if run.get("type") != "text":
+            out.append({k: run[k] for k in ("type", run.get("type"), "annotations") if k in run})
+            continue
+        content = run["text"]["content"]
+        new = pattern.sub(replace, content)
+        if new != content and not replace:  # a removal can leave a double space behind
+            new = re.sub(r"[ \t]{2,}", " ", new)
+        changed = changed or new != content
+        if new:
+            out.append(
+                {"type": "text", "text": {**run["text"], "content": new}, "annotations": run.get("annotations", {})}
+            )
+    if not changed:
+        return None
+    if out and out[-1].get("type") == "text":  # no dangling space at the end of the line
+        out[-1]["text"]["content"] = out[-1]["text"]["content"].rstrip()
+        if not out[-1]["text"]["content"]:
+            out.pop()
+    return out
+
+
+@registry.register(
+    "notion_replace_text",
+    "Edit the text of an existing Notion page directly in Notion: find and replace (or remove) words, phrases or "
+    "patterns in every block, keeping formatting. Use it to fix, rename, or delete parts of text, e.g. remove all "
+    "timecodes. Set regex=true for patterns: timecodes like (4:30–7:00) are '\\s*\\(?\\d{1,2}:\\d{2}(?:\\s*[–-]\\s*"
+    "\\d{1,2}:\\d{2})?\\)?'. preview=true shows what would change without saving.",
+    {
+        "type": "object",
+        "properties": {
+            "page": {"type": "string", "description": "Page id or URL (find it with notion_search)."},
+            "find": {"type": "string", "description": "Text or regex to find."},
+            "replace": {"type": "string", "description": "Replacement; empty to remove."},
+            "regex": {"type": "boolean"},
+            "match_case": {"type": "boolean"},
+            "preview": {"type": "boolean", "description": "Only show the changes, don't save."},
+        },
+        "required": ["page", "find"],
+    },
+)
+async def notion_replace_text(
+    page: str, find: str, replace: str = "", regex: bool = False, match_case: bool = False, preview: bool = False
+) -> dict:
+    try:
+        pattern = _pattern(find, regex, match_case)
+    except re.error as exc:
+        return {"error": f"Bad pattern: {exc}"}
+    changes = []
+    for block in await all_blocks(notion_id(page)):
+        kind = block["type"]
+        if kind not in TEXT_BLOCKS:
+            continue
+        new_rich = edit_rich_text(block[kind].get("rich_text", []), pattern, replace)
+        if new_rich is None:
+            continue
+        before, after = (
+            plain(block[kind]["rich_text"]),
+            "".join(r["text"]["content"] for r in new_rich if r.get("type") == "text"),
+        )
+        changes.append({"before": before[:200], "after": after[:200]})
+        if not preview:
+            await notion("PATCH", f"/blocks/{block['id']}", {kind: {"rich_text": new_rich}})
+    return {"changed_blocks": len(changes), "saved": not preview and bool(changes), "examples": changes[:8]}
+
+
+@registry.register(
+    "notion_delete_blocks",
+    "Delete whole lines/blocks of an existing Notion page whose text contains the given text or regex (directly in "
+    "Notion). preview=true lists them without deleting.",
+    {
+        "type": "object",
+        "properties": {
+            "page": {"type": "string", "description": "Page id or URL."},
+            "contains": {"type": "string", "description": "Text or regex the block must contain."},
+            "regex": {"type": "boolean"},
+            "preview": {"type": "boolean"},
+        },
+        "required": ["page", "contains"],
+    },
+)
+async def notion_delete_blocks(page: str, contains: str, regex: bool = False, preview: bool = False) -> dict:
+    try:
+        pattern = _pattern(contains, regex, False)
+    except re.error as exc:
+        return {"error": f"Bad pattern: {exc}"}
+    hits = [b for b in await all_blocks(notion_id(page)) if (t := block_text(b)) and pattern.search(t)]
+    if not preview:
+        for block in hits:
+            await notion("DELETE", f"/blocks/{block['id']}")
+    return {"deleted" if not preview else "would_delete": len(hits), "blocks": [block_text(b)[:150] for b in hits[:10]]}
+
+
+@registry.register(
+    "notion_append_to_page",
+    "Add content to the end of an existing Notion page (Markdown-style: headings, '- ' bullets, '- [ ]' to-dos, "
+    "**bold**).",
+    {
+        "type": "object",
+        "properties": {
+            "page": {"type": "string", "description": "Page id or URL."},
+            "content": {"type": "string"},
+        },
+        "required": ["page", "content"],
+    },
+)
+async def notion_append_to_page(page: str, content: str) -> dict:
+    blocks = markdown_to_blocks(content)
+    await notion("PATCH", f"/blocks/{notion_id(page)}/children", {"children": blocks})
+    return {"appended_blocks": len(blocks)}
 
 
 @registry.register(

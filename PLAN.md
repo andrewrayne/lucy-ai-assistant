@@ -108,6 +108,10 @@ Later stages need a few more accounts; each stage says when:
 - [x] Calendar: list, create, update, delete events
 - [x] Sheets (create, read, append, update), Forms (create, read responses), Drive (search, read files)
 - [x] Notion: search, read pages, create pages, read and query databases, add database entries
+- [x] Notion: edit existing pages through the API: find and replace text or patterns in every block (keeps
+  formatting, reads nested and long pages), delete lines, append content; `preview` shows changes without saving.
+  Rule in every prompt: data in Notion, Gmail, Calendar, Drive and Sheets is changed with its own tool, never by
+  clicking on the Mac
 - [x] Google requires a home page and a privacy policy for a published consent screen: the server serves them at `/`
   and `/privacy`; the refresh token comes from `python scripts/google_auth.py` run once on your computer
 
@@ -653,4 +657,4 @@ When you follow the plan, the checklists above already describe the final versio
 | 13 | Six database tables | Added `usage` (one row per priced call) | Cost tracking and the daily limit need history that survives redeploys |
 | 13 | Prompt-injection protection by prompt | Prompt rule + taint tracking + an owner-intent check before risky actions | A prompt alone can be argued with; the check never sees the injected text |
 | 13 | Railway template from the working project | A separate secret-free `lucy-template` project linked to a fresh public repository | The working project holds real keys and points at the private repository with personal history |
-
+| 4 | Notion: create and read pages | Also edit existing pages (`notion_replace_text`, `notion_delete_blocks`, `notion_append_to_page`) and a "cloud tools before clicking" rule | Without an edit tool the Mac assistant fell back to clicking through the Notion app to remove timecodes |

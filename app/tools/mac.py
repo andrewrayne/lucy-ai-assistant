@@ -141,8 +141,9 @@ async def look_at_screen(question: str) -> dict:
 @registry.register(
     "mac_do",
     "Do a task on the owner's Mac by looking at the screen and clicking, typing and pressing keys "
-    "(through Jarvis). Use for anything that needs the Mac's apps or real web pages: fix an error on screen, "
-    "fill a form, click through a site, change a setting in an app. Describe the goal fully.",
+    "(through Jarvis). Use only for what exists only on the Mac or real web pages: fix an error on screen, "
+    "fill a form on a website, change a setting in an app. NOT for Notion, email, calendar, Drive or Sheets: their "
+    "own tools change them directly in the cloud. Describe the goal fully.",
     {
         "type": "object",
         "properties": {
