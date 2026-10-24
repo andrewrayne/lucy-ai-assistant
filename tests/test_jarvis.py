@@ -279,3 +279,23 @@ def test_short_reply_after_silent_action_is_dropped_long_one_plays():
         assert played == [b"done", b"more"]
 
     asyncio.run(scenario())
+
+
+def test_calendar_events_are_confirmed_in_one_word_on_the_mac():
+    from google.genai import types
+
+    from app.live.call import VoiceSession
+
+    async def send(_):
+        pass
+
+    mac = VoiceSession(send, send, channel="jarvis", quiet_actions=True)
+    phone = VoiceSession(send, send, channel="call")
+    event = types.FunctionCall(name="calendar_create_event", args={"title": "Dentist"})
+    when_idle = types.FunctionResponseScheduling.WHEN_IDLE
+    assert mac._confirms(event, {"id": "e1"}) and mac._scheduling(event, {"id": "e1"}) == {"scheduling": when_idle}
+    assert not mac._confirms(event, {"error": "No access"})  # a failure is explained, not confirmed
+    assert not phone._confirms(event, {"id": "e1"})  # the Telegram call talks normally anyway
+    reminder = types.FunctionCall(name="create_reminder", args={})
+    assert not mac._confirms(reminder, {"ok": True})  # other actions stay silent
+    assert not mac._is_quiet_action(event)  # so the one-word reply isn't held back and dropped

@@ -79,6 +79,13 @@ FILLERS = {"ok", "okay", "окей", "ок", "ну", "so", "well", "lucy", "лю
 # with a SILENT result, so the model has nothing to say ("Opening Spotify", "Done"). Tested with gemini-3.8-live:
 # with normal (blocking) calls it stayed quiet but called "open Spotify" 8 times; non-blocking + silent = one call.
 # A failed action is answered normally, so Lucy says what went wrong.
+# CONFIRMED_ACTIONS are the exception: the owner wants to hear that they worked, in one word.
+CONFIRMED_ACTIONS = {"calendar_create_event", "calendar_update_event"}
+CONFIRM_ONE_WORD = (
+    "Done. Confirm with ONE word only: the verb 'I wrote it down' in the first person, past tense, feminine "
+    "where the language has gender, in the language you are speaking right now (in English just 'Added.'). "
+    "No other words, no details."
+)
 ACTION_TOOLS = {
     "mac_open",
     "mac_quit_app",
@@ -310,6 +317,8 @@ class VoiceSession:
             else:
                 result = await registry.call(fc.name, fc.args)
             self._recent_calls[key] = (time.monotonic(), result)
+            if self._confirms(fc, result):
+                result = {**result, "say": CONFIRM_ONE_WORD}
             responses.append(
                 types.FunctionResponse(id=fc.id, name=fc.name, response=result, **self._scheduling(fc, result))
             )
@@ -322,7 +331,12 @@ class VoiceSession:
             self.quiet_actions
             and fc.name in ACTION_TOOLS
             and not (fc.name == "spotify" and (fc.args or {}).get("action") == "now_playing")  # a question
+            and fc.name not in CONFIRMED_ACTIONS  # its one-word confirmation must not be held back and dropped
         )
+
+    def _confirms(self, fc: types.FunctionCall, result: dict) -> bool:
+        """A quiet action the owner wants confirmed in one word (e.g. a calendar event was added)."""
+        return self.quiet_actions and fc.name in CONFIRMED_ACTIONS and not is_failure(result)
 
     def _scheduling(self, fc: types.FunctionCall, result: dict) -> dict:
         """Silent actions: success adds the result quietly; a failure makes Lucy say what went wrong."""

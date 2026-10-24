@@ -230,6 +230,7 @@ answer a question. The wake word and microphone handling follow an earlier voice
 - [x] Same Gemini Live model and voice as the Telegram Call (`gemini-3.8-live`, Achernar); understands the owner's language, answers in English
 - [x] Interrupt Lucy by voice: just start talking while she speaks (tested by the owner)
 - [x] Actions run silently ("open Spotify", "volume 30", "add a reminder"); Lucy speaks only to answer or to say an action failed
+- [x] Adding or changing a calendar event is confirmed with one word ("Added." in English, the same word in the language you speak)
 - [x] "Stop", "okay, that's all" (and the same in the owner's other languages) end the conversation silently
 - [x] Screen: `look_at_screen` answers about what's on the screen
 - [x] Control: `mac_open`, `mac_quit_app`, `mac_volume`, `mac_media`, `mac_system`, and `mac_do` for multi-step clicking and typing
@@ -279,6 +280,9 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   `done: false`) is sent with `WHEN_IDLE`, so she says what went wrong. "What's playing?" (`spotify now_playing`) is a
   question and is answered normally. Tested with gemini-3.8-live: with ordinary (blocking) calls she stayed quiet but
   called "open Spotify" 8 times; non-blocking + silent gave one call and silence.
+- **One-word confirmations:** calendar writes (`CONFIRMED_ACTIONS` in `app/live/call.py`) are answered with
+  `WHEN_IDLE` instead of `SILENT`, and the result carries `"say"`: confirm with one first-person verb ("Added."). They are left out of the voice hold below,
+  which would otherwise drop the short word. Add a tool name to `CONFIRMED_ACTIONS` to hear a confirmation for it too.
 - Backup for silence (from the owner's earlier assistant): right after an action, Lucy's voice is held for up to 8 s. More than 4 words means
   a real answer and it plays; a short "Done" / "Opening it" that ends the turn is dropped.
 - **Ending silently:** a phrase of up to 4 words with "stop" / "enough", or "okay, that's all" (and their
