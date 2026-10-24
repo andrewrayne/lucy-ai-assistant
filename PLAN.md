@@ -351,14 +351,19 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
 **4. Build, sign and install** (`scripts/build_jarvis.sh`)
 - Needs only the Command Line Tools (`xcode-select --install`), not Xcode.
 - `JARVIS_SERVER=wss://<domain>/ws/jarvis JARVIS_TOKEN=<token> scripts/build_jarvis.sh` builds (in
-  `~/Library/Caches/Jarvis-build`, outside iCloud and git), packages `Jarvis.app` with `jarvis/Info.plist`, signs it,
-  writes `config.json` (mode 600), installs to `~/Applications/Jarvis.app` and starts it.
+  `~/Library/Caches/Jarvis-build`, outside iCloud and git), packages the app with `jarvis/Info.plist`, signs it,
+  writes `config.json` (mode 600), installs to `~/Applications/Lucy.app` and starts it. The project is called Jarvis;
+  the installed app is named after the assistant (`NAME="Lucy"` in the script).
+- App icon: the same face as in Telegram. The script downloads the bot's profile picture with the Bot API
+  (`getMe` → `getUserProfilePhotos` → `getFile`, token from `.env`) and `jarvis/make_icon.swift` turns it into a
+  rounded macOS icon (`iconutil` → `Lucy.icns`). To use another picture, put a square `jarvis/AppIcon.png`.
 - Signing: the first run creates a self-made certificate "Jarvis Local Signing" in its own keychain file
   (`~/Library/Application Support/Jarvis/signing`, not the login keychain). The same certificate every time means
   macOS keeps the permissions across rebuilds (an ad-hoc signature changed with every build and macOS asked again).
   To give the app to someone else, sign with an Apple Developer ID and notarize instead.
-- First launch: allow Microphone and Speech Recognition; turn on Jarvis in Privacy & Security → Screen Recording and
-  Accessibility (on macOS 27 both are under "Device Control and Data Access"); reopen Jarvis. The speech models
+- First launch: allow Microphone and Speech Recognition; turn on Lucy in Privacy & Security → Screen Recording and
+  Accessibility (on macOS 27 both are under "Device Control and Data Access"); reopen Lucy. Renaming the app keeps
+  these permissions: macOS ties them to the bundle id (`com.andrewrayne.jarvis`) and the signing certificate. The speech models
   download in the background (about 15 s).
 
 **Make it yours (name, languages, app ID)**
@@ -658,3 +663,4 @@ When you follow the plan, the checklists above already describe the final versio
 | 13 | Prompt-injection protection by prompt | Prompt rule + taint tracking + an owner-intent check before risky actions | A prompt alone can be argued with; the check never sees the injected text |
 | 13 | Railway template from the working project | A separate secret-free `lucy-template` project linked to a fresh public repository | The working project holds real keys and points at the private repository with personal history |
 | 4 | Notion: create and read pages | Also edit existing pages (`notion_replace_text`, `notion_delete_blocks`, `notion_append_to_page`) and a "cloud tools before clicking" rule | Without an edit tool the Mac assistant fell back to clicking through the Notion app to remove timecodes |
+| 11 | Mac app called Jarvis with a stock icon | Installed as `Lucy.app` with the Telegram bot's profile picture as its icon | One name and one face for the assistant everywhere; the bundle id stays the same so permissions survive |

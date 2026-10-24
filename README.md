@@ -74,8 +74,8 @@ Each optional part below is switched on just by adding its variables (see `.env.
   ```bash
   JARVIS_SERVER=wss://<your-domain>/ws/jarvis JARVIS_TOKEN=<same token> scripts/build_jarvis.sh
   ```
-  Allow Microphone and Speech Recognition, turn Jarvis on in Privacy & Security → Screen Recording and Accessibility,
-  reopen it. Details and troubleshooting: stage 11 in `PLAN.md`.
+  It installs as `Lucy.app` with your bot's Telegram profile picture as its icon. Allow Microphone and Speech
+  Recognition, turn Lucy on in Privacy & Security → Screen Recording and Accessibility, reopen it. Details and troubleshooting: stage 11 in `PLAN.md`.
 - **Phone calls (Twilio):** stage 12 in `PLAN.md` has a "choose your region" guide (US/Canada, Europe, India,
   other), because numbers and recording rules differ by country. In short: a Full-access Twilio account, an approved
   Primary Customer Profile (Trust Hub), a number with Voice, Geo permissions for the countries you'll call, then

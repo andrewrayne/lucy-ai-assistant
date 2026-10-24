@@ -246,7 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         talkItem = NSMenuItem(title: "Talk to Lucy  \(Hotkey.label)", action: #selector(toggleConversation), keyEquivalent: "")
         wakeItem = NSMenuItem(title: "Listen for “\(WakeWord.wakeWord)”", action: #selector(toggleWakeWord), keyEquivalent: "")
         let permissions = NSMenuItem(title: "Permissions…", action: #selector(showPermissions), keyEquivalent: "")
-        let quit = NSMenuItem(title: "Quit Jarvis", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Lucy", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         for item in [talkItem!, wakeItem!, permissions] { item.target = self }
         [stateItem, captionItem, .separator(), talkItem, wakeItem, .separator(), permissions, quit].forEach(menu.addItem)
         statusItem.menu = menu
@@ -255,7 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateIcon() {
         let online = connection?.isConnected == true
         let symbol = !online ? "waveform.slash" : inConversation ? "waveform.circle.fill" : "waveform"
-        statusItem.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Jarvis")
+        statusItem.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Lucy")
         stateItem.title = !online ? "Lucy: offline, reconnecting…"
             : audioFailed ? "Microphone unavailable (see Permissions…)"
             : inConversation ? "Lucy is listening" : "Lucy: connected"
@@ -275,9 +275,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showPermissions() {
         Permissions.requestMissing { [weak self] in
             let alert = NSAlert()
-            alert.messageText = "Jarvis permissions"
+            alert.messageText = "Lucy permissions"
             alert.informativeText = Permissions.summary
-                + "\n\nMissing ones are in System Settings → Privacy & Security. After turning one on, quit and reopen Jarvis."
+                + "\n\nMissing ones are in System Settings → Privacy & Security. After turning one on, quit and reopen Lucy."
             alert.addButton(withTitle: "OK")
             alert.addButton(withTitle: "Open Privacy Settings")
             NSApp.activate(ignoringOtherApps: true)

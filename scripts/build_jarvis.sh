@@ -1,5 +1,6 @@
 #!/bin/bash
-# Build Jarvis (the Mac app), sign it for this Mac and install it to ~/Applications.
+# Build Jarvis (the Mac app, installed as "Lucy"), sign it for this Mac and install it to ~/Applications.
+# The app icon is the Telegram bot's profile picture (or jarvis/AppIcon.png if you put one there).
 # Needs only the Xcode Command Line Tools (xcode-select --install), not the full Xcode.
 #
 #   JARVIS_SERVER=wss://<your-domain>/ws/jarvis JARVIS_TOKEN=<token> scripts/build_jarvis.sh
@@ -10,18 +11,47 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$HOME/Library/Caches/Jarvis-build"   # outside iCloud/git
-APP="$BUILD/Jarvis.app"
-DEST="$HOME/Applications/Jarvis.app"
+NAME="Lucy"                                 # the app's name in Finder, the Dock and Settings
+APP="$BUILD/$NAME.app"
+DEST="$HOME/Applications/$NAME.app"
 CONFIG_DIR="$HOME/Library/Application Support/Jarvis"
 
 echo "→ Building"
 swift build -c release --package-path "$ROOT/jarvis" --scratch-path "$BUILD"
 
-echo "→ Packaging Jarvis.app"
+echo "→ Packaging $NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BUILD/release/Jarvis" "$APP/Contents/MacOS/Jarvis"
+cp "$BUILD/release/Jarvis" "$APP/Contents/MacOS/$NAME"
 cp "$ROOT/jarvis/Info.plist" "$APP/Contents/Info.plist"
+
+echo "→ Making the icon"
+PICTURE="$ROOT/jarvis/AppIcon.png"
+if [ ! -f "$PICTURE" ]; then
+  # Same face as in Telegram: download the bot's profile picture (token from the environment or .env).
+  BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-$(grep -E '^TELEGRAM_BOT_TOKEN=' "$ROOT/.env" 2>/dev/null | cut -d= -f2- || true)}"
+  PICTURE="$BUILD/avatar.jpg"
+  rm -f "$PICTURE"
+  if [ -n "$BOT_TOKEN" ]; then
+    python3 - "$BOT_TOKEN" "$PICTURE" <<'PY' || true
+import json, sys, urllib.request
+token, out = sys.argv[1], sys.argv[2]
+api = lambda method, query="": json.load(urllib.request.urlopen(f"https://api.telegram.org/bot{token}/{method}{query}"))
+bot = api("getMe")["result"]
+photos = api("getUserProfilePhotos", f"?user_id={bot['id']}&limit=1")["result"]["photos"]
+if photos:
+    path = api("getFile", f"?file_id={photos[0][-1]['file_id']}")["result"]["file_path"]
+    urllib.request.urlretrieve(f"https://api.telegram.org/file/bot{token}/{path}", out)
+PY
+  fi
+fi
+if [ -f "$PICTURE" ]; then
+  rm -rf "$BUILD/$NAME.iconset"
+  swift "$ROOT/jarvis/make_icon.swift" "$PICTURE" "$BUILD/$NAME.iconset"
+  iconutil -c icns "$BUILD/$NAME.iconset" -o "$APP/Contents/Resources/$NAME.icns"
+else
+  echo "  (no picture: set a profile photo for the bot in @BotFather or add jarvis/AppIcon.png)"
+fi
 
 # Signed with a self-made certificate kept in its own keychain file (not your login keychain).
 # The same certificate every time means macOS keeps Jarvis's permissions across rebuilds
@@ -68,9 +98,11 @@ if [ ! -f "$CONFIG_DIR/config.json" ] || [ -n "${JARVIS_TOKEN:-}" ]; then
 fi
 
 echo "→ Installing to $DEST"
-pkill -x Jarvis 2>/dev/null || true
+pkill -x Jarvis 2>/dev/null || true   # older builds were called Jarvis
+pkill -x "$NAME" 2>/dev/null || true
 mkdir -p "$HOME/Applications"
-rm -rf "$DEST"
+rm -rf "$DEST" "$HOME/Applications/Jarvis.app"
 cp -R "$APP" "$DEST"
 open "$DEST"
-echo "✓ Jarvis is running (look for the waveform icon in the menu bar)"
+touch "$DEST"   # so Finder and the Dock pick up the new icon
+echo "✓ $NAME is running (look for the waveform icon in the menu bar)"
