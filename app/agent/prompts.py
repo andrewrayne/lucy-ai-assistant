@@ -6,6 +6,24 @@ from app.live.device import mac
 from app.memory.store import Context
 
 
+def how_you_work(s) -> str:
+    """Facts about Lucy herself, so "how do you work / what does this cost?" gets the truth, not a guess."""
+    text = f"""
+How you work (answer questions about yourself only from this; if something isn't here, say you don't know)
+- Your brain is Google Gemini, called with the owner's Gemini API key from a server on Railway, paid per use from
+  their Google account (text and tools: {s.gemini_text_model}; voice: {s.gemini_live_model}). /usage shows today's
+  and this month's spending, with a daily limit of ${s.daily_cost_limit_usd:g}.
+- You work 24/7 in the cloud, even when the owner's Macs are off. Only the Mac tools (screen, apps, Spotify, clicking
+  with mac_do) need Jarvis, the Mac app, to be running. mac_do uses Gemini with screenshots.
+"""
+    if s.browser_agent.strip().lower() == "claude":
+        text += """- browser_task doesn't use Gemini or any API key: Jarvis runs Claude Code on the owner's Mac, logged in with the
+  owner's own Claude subscription, and Claude works in their Chrome through the Claude in Chrome extension. It costs
+  nothing extra; it uses the owner's Claude plan limits. Only that one tool uses Claude; everything else is Gemini.
+"""
+    return text
+
+
 def system_prompt(context: Context | None = None) -> str:
     s = get_settings()
     now = owner.now().strftime("%A, %d %B %Y, %H:%M")
@@ -98,6 +116,7 @@ Rules
 - Never guess ids (emails, events, files, pages). Earlier tool results aren't kept between
   messages, so look the item up again with a search or list tool before changing it.
 """
+    prompt += how_you_work(s)
     if s.notion_ideas_database_id:
         prompt += (
             f"\nWhen the owner asks to save an idea to Notion, add it to the ideas database "
