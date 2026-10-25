@@ -1,10 +1,10 @@
 import Carbon
 
-/// Global hotkey ⇧E (Shift + E): start or end a conversation from any app.
-/// Carbon's RegisterEventHotKey needs no permission. Note: while Jarvis runs, Shift + E is taken by
-/// Jarvis, so a capital E can't be typed with it (Caps Lock + E still works).
+/// Global hotkey ⇧⌘F (Shift + Command + F): start or end a conversation from any app.
+/// Carbon's RegisterEventHotKey needs no permission. While the app runs, the shortcut belongs to it,
+/// so other apps' own ⇧⌘F (e.g. "Find in files" in code editors) won't fire.
 final class Hotkey {
-    static let label = "⇧E"
+    static let label = "⇧⌘F"
     private static var action: (() -> Void)?
     private static var lastFired = Date.distantPast
     private var ref: EventHotKeyRef?
@@ -22,7 +22,7 @@ final class Hotkey {
             return noErr
         }, 1, &spec, nil, nil)
         let id = EventHotKeyID(signature: OSType(0x4A52_5653), id: 1)  // "JRVS"
-        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_E), UInt32(shiftKey), id, GetEventDispatcherTarget(), 0, &ref)
-        say("Jarvis: hotkey ⇧E handler \(installed), register \(registered)")
+        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_F), UInt32(shiftKey | cmdKey), id, GetEventDispatcherTarget(), 0, &ref)
+        say("Jarvis: hotkey \(Hotkey.label) handler \(installed), register \(registered)")
     }
 }

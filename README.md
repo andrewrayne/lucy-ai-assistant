@@ -5,7 +5,7 @@
 A personal AI assistant with one brain and one memory in the cloud, and three ways to reach her:
 
 - **Telegram:** chat, voice notes, photos, documents, and voice calls (a Mini App call button).
-- **The Mac ("Jarvis"):** say "Lucy" or press ⇧E and talk; she sees the screen, opens apps, clicks and types.
+- **The Mac ("Jarvis"):** say "Lucy" or press ⇧⌘F and talk; she sees the screen, opens apps, clicks and types.
 - **The phone:** she calls you, calls businesses for you ("book a table for Friday at 8"), and takes messages.
 
 She uses your Gmail, Calendar, Drive, Sheets, Forms, Notion, YouTube channel and GitHub, sends a morning brief,

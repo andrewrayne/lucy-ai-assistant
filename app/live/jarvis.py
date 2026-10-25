@@ -1,7 +1,7 @@
 """WebSocket for Jarvis, the owner's Mac app.
 
 One long-lived connection per Mac. It carries two things:
-1. Voice: Jarvis says "call_start" (wake word "Lucy" or the Shift + E hotkey), streams microphone
+1. Voice: Jarvis says "call_start" (wake word "Lucy" or the Shift + Command + F hotkey), streams microphone
    audio, and plays Lucy's audio back. Same engine as the Telegram call.
 2. Device control: the server sends {"type": "device", ...} requests and Jarvis
    answers with {"type": "device_result", ...} (see app/live/device.py).
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 JARVIS_STYLE = """
 You are talking through Jarvis, the app on the owner's Mac. The owner said your name ("Lucy") or pressed the
-hotkey (Shift + E); you are still Lucy.
+hotkey (Shift + Command + F); you are still Lucy.
 How to behave on the Mac (it's a quick voice remote, not a chat):
 - The owner may speak another language; understand it and answer in English, unless the owner asks you to switch
   language (see the language rule above).

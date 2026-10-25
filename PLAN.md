@@ -218,7 +218,7 @@ USD/EUR 0.8934 (+0.0010, +0.1%)
 
 ## Stage 11. Lucy on the Mac (Jarvis app)
 
-A menu bar app called Jarvis. Say "Lucy" (or press ⇧E), speak in any language, and Lucy answers in English with the
+A menu bar app called Jarvis. Say "Lucy" (or press ⇧⌘F), speak in any language, and Lucy answers in English with the
 same memory and tools as in Telegram, plus eyes and hands on the Mac. Actions happen silently; she speaks only to
 answer a question. The wake word and microphone handling follow an earlier voice assistant the owner had already built and used.
 
@@ -226,7 +226,7 @@ answer a question. The wake word and microphone handling follow an earlier voice
 - [x] One WebSocket to the server (`/ws/jarvis`, `JARVIS_TOKEN`): same memory and tools; the Gemini key stays on the server
 - [x] Wake word "Lucy" on the Mac, in English and in the owner's second language, free and offline (Apple
   SpeechAnalyzer; works without macOS Dictation)
-- [x] Hotkey ⇧E: start talking without the wake word; cuts Lucy off while she speaks; otherwise ends the conversation
+- [x] Hotkey ⇧⌘F: start talking without the wake word; cuts Lucy off while she speaks; otherwise ends the conversation
 - [x] Same Gemini Live model and voice as the Telegram Call (`gemini-3.8-live`, Achernar); understands the owner's language, answers in English
 - [x] Interrupt Lucy by voice: just start talking while she speaks (tested by the owner)
 - [x] Actions run silently ("open Spotify", "volume 30", "add a reminder"); Lucy speaks only to answer or to say an action failed
@@ -245,7 +245,7 @@ answer a question. The wake word and microphone handling follow an earlier voice
 ```
 Mac (Jarvis.app)                                    Railway server                      Google
 mic ─► Audio hub ─► wake word "Lucy" (on-device)
-          │ (after "Lucy" or ⇧E)
+          │ (after "Lucy" or ⇧⌘F)
           └─ 16 kHz PCM ──── /ws/jarvis ──────────► VoiceSession ◄─────────────────► Gemini Live
 speaker ◄─ Lucy's voice (24 kHz) ◄────────────────── (same engine as the          (gemini-3.8-live)
 Device.swift ◄─ {"type":"device", ...} ◄─────────── Telegram call) + tool registry
@@ -337,7 +337,7 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   "Lucy", Permissions…, Quit), login item, and the conversation:
   - "Lucy" → chime, `call_start` with the app in front and the installed apps, then the last 2.5 s of audio, then the
     live microphone. So "Lucy … (chime) … what's the weather" and "Lucy, what's the weather" in one breath both work;
-  - ⇧E: start; while Lucy speaks, cut her off; otherwise end;
+  - ⇧⌘F: start; while Lucy speaks, cut her off; otherwise end;
   - ends after 15 s with nobody talking and no action running (`idleSeconds`), or when the server says `ended`; then a
     "pop" sound and it listens for the name again. An error sound means the server isn't connected.
 - `Connection.swift`: the WebSocket, with the token in the first message, a ping every 20 s and reconnect after 3 s.
@@ -345,8 +345,9 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   (CGEvent), open apps/links/files (for apps it waits up to 5 s and reports whether they really started), quit apps,
   volume (AppleScript), media (Spotify/Music via AppleScript, otherwise the media keys), lock screen, display off,
   screen saver, Spotify commands.
-- `Hotkey.swift`: ⇧E via Carbon `RegisterEventHotKey` (no permission needed). While Jarvis runs, Shift + E belongs to
-  it, so type a capital E with Caps Lock.
+- `Hotkey.swift`: ⇧⌘F via Carbon `RegisterEventHotKey` (no permission needed). While the app runs, ⇧⌘F belongs to
+  it, so other apps' own ⇧⌘F (e.g. "Find in files" in code editors) doesn't fire. Change `kVK_ANSI_F` and the
+  modifiers there to pick another shortcut.
 - `Config.swift`: reads `~/Library/Application Support/Jarvis/config.json` (`server`, `token`); nothing secret is
   built into the app.
 - `Permissions.swift`: asks for Microphone, Speech Recognition, Screen Recording and Accessibility and shows what's
@@ -389,7 +390,7 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
 
 **6. Test**
 - "Lucy" → chime → "what's the weather?"; the same in your second language; "Lucy, open Notion" in one breath (opens silently);
-  ⇧E and talk; talk over Lucy during a long answer; "what's on my screen?"; "play Daft Punk on Spotify";
+  ⇧⌘F and talk; talk over Lucy during a long answer; "what's on my screen?"; "play Daft Punk on Spotify";
   "turn the volume down"; "okay, that's all" (hangs up silently); quit Jarvis and ask in Telegram "open Safari on my
   Mac" (Lucy says the Mac is offline).
 
@@ -402,7 +403,7 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   automatic level is safer for a real voice.
 - Recent chat lines in the Mac prompt: when Lucy didn't understand, she answered an old question from the history.
 - A spoken "Yes?" after the wake word: talked over the owner's first words, and the mic is paused while she speaks.
-- Hotkeys ⌃⌥J and ` + Tab: replaced by ⇧E at the owner's request.
+- Hotkeys ⌃⌥J, ` + Tab and ⇧E: replaced by ⇧⌘F at the owner's request (⇧E also blocked typing a capital E).
 - Ordinary (blocking) tool calls for actions: Lucy narrated them ("Opening Spotify") or repeated the call many times.
 
 ## Stage 12. Phone calls
@@ -641,10 +642,10 @@ When you follow the plan, the checklists above already describe the final versio
 | 10 | "Open YouTube and research" by voice | Prompt rule: never say "I can't browse", search instead (`web_search`, `youtube_search`, `deep_research`); new `youtube_search` tool | Owner feedback: on a call the assistant refused a research request it could do with search |
 | 11 | Wake word with Porcupine / openWakeWord, "Hey Jarvis" | "Lucy" (owner's choice) with Apple's on-device SpeechAnalyzer: English + a far-field recogniser for the owner's second language, in separate analyzers, speech detector, partial results | Free, offline, no extra SDK. Replaced SFSpeechRecognizer, which refuses to run with macOS Dictation off; one analyzer with two recognisers gave no results from the second one |
 | 11 | Gemini Computer Use model | `mac_do`: screenshot → Gemini Flash returns one JSON action on a 0–1000 grid → Jarvis clicks/types | The Computer Use preview model returned 503 on every try |
-| 11 | Echo cancellation + talking over Lucy | No echo cancellation: mic paused while Lucy speaks; Jarvis detects the owner talking over her by comparing the mic with her known loudness (learned echo level), plus ⇧E | Apple's voice processing passed only silence from the Studio Display mic; the owner wants to interrupt by voice |
+| 11 | Echo cancellation + talking over Lucy | No echo cancellation: mic paused while Lucy speaks; Jarvis detects the owner talking over her by comparing the mic with her known loudness (learned echo level), plus ⇧⌘F | Apple's voice processing passed only silence from the Studio Display mic; the owner wants to interrupt by voice |
 | 11 | Raw microphone audio | First channel only, 150 Hz low-cut, automatic level (up to ×6) | Gemini Live ignored the quiet, boomy Studio Display audio |
 | 11 | Context on the Mac | Long-term memory only, no recent chat lines; language hints; "answer only what was just said" | Lucy answered an old test question when she didn't understand the owner |
-| 11 | Global hotkey | ⇧E via Carbon (owner's choice, after ⌃⌥J and ` + Tab) | No permission needed; Shift + E no longer types a capital E while Jarvis runs |
+| 11 | Global hotkey | ⇧⌘F via Carbon (owner's choice, after ⌃⌥J, ` + Tab and ⇧E) | No permission needed; while the app runs, other apps' own ⇧⌘F doesn't fire |
 | 11 | Greeting when summoned | A chime; the 2.5 s before it are sent too | A spoken "Yes?" overlapped the owner's first words; one-breath commands still work |
 | 11 | Signing and notarizing | Local self-signed certificate in its own keychain file, created by the build script | No Apple Developer account needed; permissions survive rebuilds |
 | 11 | Arbitrary AppleScript | Only fixed actions | Text on screen can't make Lucy run scripts |

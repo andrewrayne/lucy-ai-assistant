@@ -1,7 +1,7 @@
 import AppKit
 import ServiceManagement
 
-/// The menu bar app: connects to the server, listens for "Lucy" or Shift + E,
+/// The menu bar app: connects to the server, listens for "Lucy" or Shift + Command + F,
 /// streams the conversation, and runs device requests from the server.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
