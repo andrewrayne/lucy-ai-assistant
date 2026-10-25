@@ -6,6 +6,7 @@ assistant can search everything it has ever discussed with the owner.
 
 import asyncio
 import logging
+import time
 from collections import defaultdict
 
 from aiogram import Bot, F, Router
@@ -201,23 +202,68 @@ async def on_voice(message: Message, bot: Bot) -> None:
     )
 
 
+# Albums: Telegram sends each photo of an album as its own message, sharing a media_group_id. They are collected
+# until no new one arrives for ALBUM_WAIT seconds, then answered together in one reply.
+ALBUM_WAIT = 1.5
+MAX_IMAGES = 10  # Telegram's own album limit
+_albums: dict[str, list[Message]] = {}
+_album_seen: dict[str, float] = {}
+_album_tasks: set[asyncio.Task] = set()
+
+
 @router.message(F.photo | (F.document & F.document.mime_type.startswith("image/")))
 async def on_photo(message: Message, bot: Bot) -> None:
-    """Photo (or image file) -> Gemini sees it, together with the caption -> text reply."""
-    media = message.photo[-1] if message.photo else message.document  # largest photo size
-    mime = "image/jpeg" if message.photo else message.document.mime_type
+    """Photo (or image file) -> Gemini sees it, together with the caption -> text reply. An album -> one reply."""
+    group = message.media_group_id
+    if not group:
+        await answer_images(bot, [message])
+        return
+    _album_seen[group] = time.monotonic()
+    if group in _albums:
+        _albums[group].append(message)
+        return
+    _albums[group] = [message]
+    task = asyncio.create_task(_answer_album(bot, group))
+    _album_tasks.add(task)
+    task.add_done_callback(_album_tasks.discard)
+
+
+async def _answer_album(bot: Bot, group: str) -> None:
+    while (left := ALBUM_WAIT - (time.monotonic() - _album_seen[group])) > 0:
+        await asyncio.sleep(left)
+    messages = _albums.pop(group)
+    _album_seen.pop(group, None)
+    await _safe(answer_images(bot, sorted(messages, key=lambda m: m.message_id)), "answer an album")
+
+
+async def answer_images(bot: Bot, messages: list[Message]) -> None:
+    chat_id = messages[0].chat.id
+    parts: list[types.Part] = []
     try:
-        image = (await bot.download(media)).read()
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
+            for message in messages[:MAX_IMAGES]:
+                media = message.photo[-1] if message.photo else message.document  # largest photo size
+                mime = "image/jpeg" if message.photo else message.document.mime_type
+                parts.append(types.Part.from_bytes(data=(await bot.download(media)).read(), mime_type=mime))
     except Exception:
         log.exception("Could not download photo")
-        await message.answer("⚠️ I couldn't open that image. Please try again.")
+        await bot.send_message(chat_id, "⚠️ I couldn't open that image. Please try again.")
         return
-    caption = (message.caption or "").strip()
-    parts = [
-        types.Part.from_bytes(data=image, mime_type=mime),
-        types.Part(text=caption or "(The owner sent this image without a caption. Describe what matters in it.)"),
-    ]
-    await _reply(bot, message.chat.id, f"[photo] {caption}".strip(), parts=parts)
+    # In an album the caption usually sits on one photo; it applies to all of them.
+    owner_caption = "\n".join(c for m in messages if (c := (m.caption or "").strip()))
+    caption, count = owner_caption, len(parts)
+    if not caption:
+        caption = (
+            "(The owner sent this image without a caption. Describe what matters in it.)"
+            if count == 1
+            else f"(The owner sent these {count} images together without a caption. Look at all of them and "
+            "answer once, about the set as a whole.)"
+        )
+    elif count > 1:
+        caption = f"(The owner sent {count} images together.) {caption}"
+    parts.append(types.Part(text=caption))
+    label = "[photo]" if count == 1 else f"[{count} photos]"
+    await _reply(bot, chat_id, f"{label} {owner_caption}".strip(), parts=parts)
 
 
 @router.message()

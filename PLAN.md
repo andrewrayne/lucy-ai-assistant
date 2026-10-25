@@ -185,6 +185,9 @@ USD/EUR 0.8934 (+0.0010, +0.1%)
 - [x] GitHub: repos, commits, issues
 - [x] Daily database backup to Google Drive (not to GitHub: it will contain personal data from your email)
 - [x] Send photos and images in Telegram
+- [x] Several photos sent together (an album) get one answer: Telegram delivers each album photo as its own message
+  with a shared `media_group_id`; the bot collects them until no new one arrives for 1.5 s, then sends all images (up
+  to 10) and the caption to Gemini in one request
 - [x] YouTube search across all of YouTube (`youtube_search`): channels with subscriber counts and the links from their descriptions (e.g. Skool communities), or videos with views
 
 **Result:** "How did my last video do?", "Transcribe this video", "Research X" work.
@@ -628,7 +631,7 @@ When you follow the plan, the checklists above already describe the final versio
 | 7 | Who can teach | Only the owner's own messages create lessons or skills, never emails, pages or files | Prompt-injection protection: content can't rewrite the assistant's rules |
 | 8 | Documents (docx/pdf) | Markdown → HTML uploaded to Drive as a Google Doc (folder "Lucy"), exported by Google as PDF/DOCX and sent in Telegram | No PDF/Word libraries or fonts on the server; every document also lives in Drive |
 | 8 | Long research | In-process background task: Gemini plans 5 sub-questions → parallel Google-grounded answers → report → document; logged in `agent_runs` (`lucy-research`) | Typically about a minute; the chat stays free meanwhile |
-| 8 | Photos | Incoming photos/image files go to Gemini with the caption; `generate_image` (Gemini 3.1 Flash Image) sends pictures | Covers both directions of "photos and images in Telegram" |
+| 8 | Photos | Incoming photos/image files go to Gemini with the caption, albums together in one request; `generate_image` (Gemini 3.1 Flash Image) sends pictures | Covers both directions of "photos and images in Telegram" |
 | 8 | Database backup | Hourly check makes sure `Lucy Backups/backup-YYYY-MM-DD.zip` exists after 03:00 local; JSON per table, embeddings omitted, last 14 kept; silent unless it fails | Stateless and redeploy-safe; embeddings can be recomputed |
 | 8 | YouTube permissions | Added the `youtube.force-ssl` scope (owner approved; re-consent via `scripts/google_auth.py`) | Needed to read comments and the captions of private/unlisted videos; the tools only read |
 | 8 | GitHub access | Fine-grained token `lucy-assistant`: all repos, Contents read-only, Issues read & write, expires 2027-10-24; REST via `httpx` | Least privilege: Lucy can read code and manage issues but can't push or delete |
