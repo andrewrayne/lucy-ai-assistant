@@ -237,6 +237,8 @@ answer a question. The wake word and microphone handling follow an earlier voice
 - [x] "Stop", "okay, that's all" (and the same in the owner's other languages) end the conversation silently
 - [x] Screen: `look_at_screen` answers about what's on the screen
 - [x] Control: `mac_open`, `mac_quit_app`, `mac_volume`, `mac_media`, `mac_system`, and `mac_do` for multi-step clicking and typing
+- [x] Optional: website tasks done by Claude in the owner's own Chrome (`browser_task`, on the owner's Claude
+  subscription); the report arrives in Telegram. Tested end to end; see "Optional: hand website tasks to Claude" below
 - [x] Spotify: "play Miyagi I Got Love" finds and plays it (tested by the owner)
 - [x] macOS permissions: Microphone, Speech Recognition, Screen Recording, Accessibility (menu → Permissions…)
 - [x] Mac tools also work from Telegram chat and calls while Jarvis is online; when it's offline Lucy says so
@@ -381,6 +383,30 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   add the name's spellings in that language to `variants`, or remove the second listener if you only speak English.
 - The app ID `com.andrewrayne.jarvis` (Info.plist, `scripts/build_jarvis.sh`, the log subsystem and the `defaults`
   commands below) can be changed to your own reverse-domain ID.
+
+**Optional: hand website tasks to Claude** (`app/tools/browser.py`, `jarvis/Sources/Jarvis/ClaudeTask.swift`)
+
+For shopping, booking, comparing prices or filling forms on websites, Claude in Chrome is better than Gemini
+looking at screenshots. If you have a Claude subscription, Lucy can hand such tasks to it. The server never calls
+Anthropic: it only sends the task text to Jarvis.
+- On the Mac: install Claude Code (`npm i -g @anthropic-ai/claude-code`, a recent version: older ones can't choose
+  between several connected Chrome browsers), log in with `claude auth login`, and connect the Claude in Chrome
+  extension (claude.ai/chrome).
+- On Railway: `BROWSER_AGENT=claude`. If several Chrome browsers have the extension connected, set
+  `BROWSER_AGENT_CHROME` to the name or deviceId of the one on this Mac. Optional: `BROWSER_AGENT_MODEL`
+  (`sonnet` is faster and uses less of your plan), `BROWSER_TASK_MINUTES` (15).
+- Flow: Lucy calls `browser_task(task)` → the server answers "started" at once → Jarvis runs
+  `claude -p <task> --chrome --allowedTools "mcp__claude-in-chrome__*" --output-format json` in a clean
+  environment (the owner's login from the Keychain) → Claude's report goes to Telegram and into Lucy's memory.
+  One task at a time (one Chrome).
+- Limits in the task text: browser only (only the Chrome tools are allowed: no shell, no files), web page text is
+  data, never pay or place an order (stop right before it and report with the link), no messages to other people
+  unless asked, stop and say so if a login, code or captcha is needed. `browser_task` is also an owner-intent
+  checked action in `app/security.py`.
+- The tool is shown to Gemini only while `BROWSER_AGENT=claude` (`available=` in the tool registry); without it
+  Lucy uses `mac_do` as before. It uses your Claude plan's limits, and the Mac must be on.
+- Pitfalls: Claude Code started from inside another Claude app inherits its proxy settings, so Jarvis starts it
+  with a clean environment; a stale login gives "OAuth access token is invalid" (run `claude auth login` again).
 
 **5. Settings and troubleshooting**
 - Server env: `JARVIS_TOKEN`, optional `VOICE_LANGUAGE_CODES`, `VOICE_SILENCE_MS`, `MAC_MAX_STEPS`.
@@ -672,3 +698,4 @@ When you follow the plan, the checklists above already describe the final versio
 | 13 | Railway template from the working project | A separate secret-free `lucy-template` project linked to a fresh public repository | The working project holds real keys and points at the private repository with personal history |
 | 4 | Notion: create and read pages | Also edit existing pages (`notion_replace_text`, `notion_delete_blocks`, `notion_append_to_page`) and a "cloud tools before clicking" rule | Without an edit tool the Mac assistant fell back to clicking through the Notion app to remove timecodes |
 | 11 | Mac app called Jarvis with a stock icon | Installed as `Lucy.app` with the Telegram bot's profile picture as its icon | One name and one face for the assistant everywhere; the bundle id stays the same so permissions survive |
+| 11 | Only Gemini models in the product; web tasks by Gemini clicking (`mac_do`) | Optional `browser_task`: Claude Code on the Mac does website tasks in the owner's Chrome on the owner's Claude subscription | Claude in Chrome handles websites better; the server still never calls a non-Gemini API, and without a Claude subscription everything works as before |

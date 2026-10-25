@@ -22,6 +22,7 @@ class Tool:
     description: str
     parameters: dict  # JSON Schema for the arguments
     handler: Handler
+    available: Callable[[], bool] | None = None  # e.g. only when an optional service is configured
 
     def declaration(self) -> types.FunctionDeclaration:
         return types.FunctionDeclaration(
@@ -35,8 +36,11 @@ class ToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, Tool] = {}
 
-    def register(self, name: str, description: str, parameters: dict | None = None):
-        """Decorator: @registry.register("name", "what it does", {...json schema...})"""
+    def register(
+        self, name: str, description: str, parameters: dict | None = None, available: Callable[[], bool] | None = None
+    ):
+        """Decorator: @registry.register("name", "what it does", {...json schema...}).
+        available: shown to the model only while it returns True."""
 
         def wrap(handler: Handler) -> Handler:
             self._tools[name] = Tool(
@@ -44,6 +48,7 @@ class ToolRegistry:
                 description=description,
                 parameters=parameters or {"type": "object", "properties": {}},
                 handler=handler,
+                available=available,
             )
             return handler
 
@@ -53,9 +58,10 @@ class ToolRegistry:
         return list(self._tools)
 
     def gemini_tools(self) -> list[types.Tool]:
-        if not self._tools:
+        tools = [t for t in self._tools.values() if t.available is None or t.available()]
+        if not tools:
             return []
-        return [types.Tool(function_declarations=[t.declaration() for t in self._tools.values()])]
+        return [types.Tool(function_declarations=[t.declaration() for t in tools])]
 
     async def call(self, name: str, args: dict | None) -> dict:
         """Run a tool and always return a dict, so the model sees errors instead of crashing."""

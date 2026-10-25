@@ -93,6 +93,7 @@ ACTION_TOOLS = {
     "mac_media",
     "mac_system",
     "mac_do",
+    "browser_task",
     "spotify",
     "create_reminder",
     "cancel_reminder",

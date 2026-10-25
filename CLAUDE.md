@@ -7,7 +7,7 @@ This project accompanies a YouTube tutorial, so keep the code clean, readable an
 ## Hard rules
 
 - **Language:** every user-facing string is in English: bot messages, buttons, voice, Mini App UI, Jarvis UI, README, commit messages, code comments. The owner may talk to you in any language; the product itself stays English.
-- **Models:** only Google Gemini APIs inside the product (`google-genai` SDK). Do not add Anthropic, OpenAI or ElevenLabs API calls. Check current model IDs in the Gemini docs before using them; Live models get retired often. Keep model IDs in config, never hard-code them in logic.
+- **Models:** only Google Gemini APIs inside the product (`google-genai` SDK). Do not add Anthropic, OpenAI or ElevenLabs API calls. Check current model IDs in the Gemini docs before using them; Live models get retired often. Keep model IDs in config, never hard-code them in logic. One optional exception, on the Mac only: `browser_task` hands website tasks to the owner's own Claude Code (Claude subscription + Claude in Chrome) through Jarvis; the server itself never calls a non-Gemini API.
 - **Always on:** the assistant must work while the owner's Macs are off. Everything except the Jarvis client runs on Railway.
 - **Security:**
   - The Telegram bot answers only the owner's user ID (`OWNER_TELEGRAM_ID`).

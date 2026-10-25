@@ -142,7 +142,8 @@ async def look_at_screen(question: str) -> dict:
     "mac_do",
     "Do a task on the owner's Mac by looking at the screen and clicking, typing and pressing keys "
     "(through Jarvis). Use only for what exists only on the Mac or real web pages: fix an error on screen, "
-    "fill a form on a website, change a setting in an app. NOT for Notion, email, calendar, Drive or Sheets: their "
+    "fill a form on a website (browser_task is better for websites when you have it), change a setting in an "
+    "app. NOT for Notion, email, calendar, Drive or Sheets: their "
     "own tools change them directly in the cloud. Describe the goal fully.",
     {
         "type": "object",

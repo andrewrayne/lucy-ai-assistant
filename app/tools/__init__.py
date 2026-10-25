@@ -3,6 +3,7 @@
 from app.tools import (  # noqa: F401
     agents,
     basics,
+    browser,
     calendar,
     documents,
     drive,

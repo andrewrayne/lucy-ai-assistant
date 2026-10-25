@@ -26,6 +26,12 @@ enum Device {
                 return try await MainActor.run {
                     try spotify(request["command"] as? String ?? "", volume: request["volume"] as? Int ?? 50)
                 }
+            case "claude_task":
+                return await ClaudeTask.run(
+                    request["prompt"] as? String ?? "",
+                    timeout: request["timeout_s"] as? Double ?? 900,
+                    model: request["model"] as? String
+                )
             default: return ["ok": false, "error": "Unknown action \(action)"]
             }
             return ["ok": true]

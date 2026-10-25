@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     # Jarvis (the Mac app): shared secret for /ws/jarvis, and how many steps one Mac task may take.
     jarvis_token: str = ""
     mac_max_steps: int = 25
+    # Browser tasks through Claude Code on the Mac (the owner's Claude subscription + Claude in Chrome).
+    # Off unless set: "claude". Optional model alias ("sonnet", "opus"; empty = Claude Code's default).
+    browser_agent: str = ""
+    browser_agent_model: str = ""
+    browser_task_minutes: int = 15
+    # If several Chrome browsers have the Claude extension connected: which one (its name or deviceId).
+    browser_agent_chrome: str = ""
 
     # Secret your other agents use to report runs to POST /api/agent-runs.
     agents_token: str = ""
