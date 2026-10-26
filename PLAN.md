@@ -108,10 +108,6 @@ Later stages need a few more accounts; each stage says when:
 - [x] Calendar: list, create, update, delete events
 - [x] Sheets (create, read, append, update), Forms (create, read responses), Drive (search, read files)
 - [x] Notion: search, read pages, create pages, read and query databases, add database entries
-- [x] Notion: edit existing pages through the API: find and replace text or patterns in every block (keeps
-  formatting, reads nested and long pages), delete lines, append content; `preview` shows changes without saving.
-  Rule in every prompt: data in Notion, Gmail, Calendar, Drive and Sheets is changed with its own tool, never by
-  clicking on the Mac
 - [x] Google requires a home page and a privacy policy for a published consent screen: the server serves them at `/`
   and `/privacy`; the refresh token comes from `python scripts/google_auth.py` run once on your computer
 
@@ -185,9 +181,6 @@ USD/EUR 0.8934 (+0.0010, +0.1%)
 - [x] GitHub: repos, commits, issues
 - [x] Daily database backup to Google Drive (not to GitHub: it will contain personal data from your email)
 - [x] Send photos and images in Telegram
-- [x] Several photos sent together (an album) get one answer: Telegram delivers each album photo as its own message
-  with a shared `media_group_id`; the bot collects them until no new one arrives for 1.5 s, then sends all images (up
-  to 10) and the caption to Gemini in one request
 - [x] YouTube search across all of YouTube (`youtube_search`): channels with subscriber counts and the links from their descriptions (e.g. Skool communities), or videos with views
 
 **Result:** "How did my last video do?", "Transcribe this video", "Research X" work.
@@ -221,7 +214,7 @@ USD/EUR 0.8934 (+0.0010, +0.1%)
 
 ## Stage 11. Lucy on the Mac (Jarvis app)
 
-A menu bar app called Jarvis. Say "Lucy" (or press ⇧⌘F), speak in any language, and Lucy answers in English with the
+A menu bar app called Jarvis. Say "Lucy" (or press ⇧E), speak in any language, and Lucy answers in English with the
 same memory and tools as in Telegram, plus eyes and hands on the Mac. Actions happen silently; she speaks only to
 answer a question. The wake word and microphone handling follow an earlier voice assistant the owner had already built and used.
 
@@ -229,16 +222,13 @@ answer a question. The wake word and microphone handling follow an earlier voice
 - [x] One WebSocket to the server (`/ws/jarvis`, `JARVIS_TOKEN`): same memory and tools; the Gemini key stays on the server
 - [x] Wake word "Lucy" on the Mac, in English and in the owner's second language, free and offline (Apple
   SpeechAnalyzer; works without macOS Dictation)
-- [x] Hotkey ⇧⌘F: start talking without the wake word; cuts Lucy off while she speaks; otherwise ends the conversation
+- [x] Hotkey ⇧E: start talking without the wake word; cuts Lucy off while she speaks; otherwise ends the conversation
 - [x] Same Gemini Live model and voice as the Telegram Call (`gemini-3.8-live`, Achernar); understands the owner's language, answers in English
 - [x] Interrupt Lucy by voice: just start talking while she speaks (tested by the owner)
 - [x] Actions run silently ("open Spotify", "volume 30", "add a reminder"); Lucy speaks only to answer or to say an action failed
-- [x] Adding or changing a calendar event is confirmed with one word ("Added." in English, the same word in the language you speak)
 - [x] "Stop", "okay, that's all" (and the same in the owner's other languages) end the conversation silently
 - [x] Screen: `look_at_screen` answers about what's on the screen
 - [x] Control: `mac_open`, `mac_quit_app`, `mac_volume`, `mac_media`, `mac_system`, and `mac_do` for multi-step clicking and typing
-- [x] Optional: website tasks done by Claude in the owner's own Chrome (`browser_task`, on the owner's Claude
-  subscription); the report arrives in Telegram. Tested end to end; see "Optional: hand website tasks to Claude" below
 - [x] Spotify: "play Miyagi I Got Love" finds and plays it (tested by the owner)
 - [x] macOS permissions: Microphone, Speech Recognition, Screen Recording, Accessibility (menu → Permissions…)
 - [x] Mac tools also work from Telegram chat and calls while Jarvis is online; when it's offline Lucy says so
@@ -250,7 +240,7 @@ answer a question. The wake word and microphone handling follow an earlier voice
 ```
 Mac (Jarvis.app)                                    Railway server                      Google
 mic ─► Audio hub ─► wake word "Lucy" (on-device)
-          │ (after "Lucy" or ⇧⌘F)
+          │ (after "Lucy" or ⇧E)
           └─ 16 kHz PCM ──── /ws/jarvis ──────────► VoiceSession ◄─────────────────► Gemini Live
 speaker ◄─ Lucy's voice (24 kHz) ◄────────────────── (same engine as the          (gemini-3.8-live)
 Device.swift ◄─ {"type":"device", ...} ◄─────────── Telegram call) + tool registry
@@ -285,9 +275,6 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   `done: false`) is sent with `WHEN_IDLE`, so she says what went wrong. "What's playing?" (`spotify now_playing`) is a
   question and is answered normally. Tested with gemini-3.8-live: with ordinary (blocking) calls she stayed quiet but
   called "open Spotify" 8 times; non-blocking + silent gave one call and silence.
-- **One-word confirmations:** calendar writes (`CONFIRMED_ACTIONS` in `app/live/call.py`) are answered with
-  `WHEN_IDLE` instead of `SILENT`, and the result carries `"say"`: confirm with one first-person verb ("Added."). They are left out of the voice hold below,
-  which would otherwise drop the short word. Add a tool name to `CONFIRMED_ACTIONS` to hear a confirmation for it too.
 - Backup for silence (from the owner's earlier assistant): right after an action, Lucy's voice is held for up to 8 s. More than 4 words means
   a real answer and it plays; a short "Done" / "Opening it" that ends the turn is dropped.
 - **Ending silently:** a phrase of up to 4 words with "stop" / "enough", or "okay, that's all" (and their
@@ -342,7 +329,7 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   "Lucy", Permissions…, Quit), login item, and the conversation:
   - "Lucy" → chime, `call_start` with the app in front and the installed apps, then the last 2.5 s of audio, then the
     live microphone. So "Lucy … (chime) … what's the weather" and "Lucy, what's the weather" in one breath both work;
-  - ⇧⌘F: start; while Lucy speaks, cut her off; otherwise end;
+  - ⇧E: start; while Lucy speaks, cut her off; otherwise end;
   - ends after 15 s with nobody talking and no action running (`idleSeconds`), or when the server says `ended`; then a
     "pop" sound and it listens for the name again. An error sound means the server isn't connected.
 - `Connection.swift`: the WebSocket, with the token in the first message, a ping every 20 s and reconnect after 3 s.
@@ -350,9 +337,8 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   (CGEvent), open apps/links/files (for apps it waits up to 5 s and reports whether they really started), quit apps,
   volume (AppleScript), media (Spotify/Music via AppleScript, otherwise the media keys), lock screen, display off,
   screen saver, Spotify commands.
-- `Hotkey.swift`: ⇧⌘F via Carbon `RegisterEventHotKey` (no permission needed). While the app runs, ⇧⌘F belongs to
-  it, so other apps' own ⇧⌘F (e.g. "Find in files" in code editors) doesn't fire. Change `kVK_ANSI_F` and the
-  modifiers there to pick another shortcut.
+- `Hotkey.swift`: ⇧E via Carbon `RegisterEventHotKey` (no permission needed). While Jarvis runs, Shift + E belongs to
+  it, so type a capital E with Caps Lock.
 - `Config.swift`: reads `~/Library/Application Support/Jarvis/config.json` (`server`, `token`); nothing secret is
   built into the app.
 - `Permissions.swift`: asks for Microphone, Speech Recognition, Screen Recording and Accessibility and shows what's
@@ -361,19 +347,14 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
 **4. Build, sign and install** (`scripts/build_jarvis.sh`)
 - Needs only the Command Line Tools (`xcode-select --install`), not Xcode.
 - `JARVIS_SERVER=wss://<domain>/ws/jarvis JARVIS_TOKEN=<token> scripts/build_jarvis.sh` builds (in
-  `~/Library/Caches/Jarvis-build`, outside iCloud and git), packages the app with `jarvis/Info.plist`, signs it,
-  writes `config.json` (mode 600), installs to `~/Applications/Lucy.app` and starts it. The project is called Jarvis;
-  the installed app is named after the assistant (`NAME="Lucy"` in the script).
-- App icon: the same face as in Telegram. The script downloads the bot's profile picture with the Bot API
-  (`getMe` → `getUserProfilePhotos` → `getFile`, token from `.env`) and `jarvis/make_icon.swift` turns it into a
-  rounded macOS icon (`iconutil` → `Lucy.icns`). To use another picture, put a square `jarvis/AppIcon.png`.
+  `~/Library/Caches/Jarvis-build`, outside iCloud and git), packages `Jarvis.app` with `jarvis/Info.plist`, signs it,
+  writes `config.json` (mode 600), installs to `~/Applications/Jarvis.app` and starts it.
 - Signing: the first run creates a self-made certificate "Jarvis Local Signing" in its own keychain file
   (`~/Library/Application Support/Jarvis/signing`, not the login keychain). The same certificate every time means
   macOS keeps the permissions across rebuilds (an ad-hoc signature changed with every build and macOS asked again).
   To give the app to someone else, sign with an Apple Developer ID and notarize instead.
-- First launch: allow Microphone and Speech Recognition; turn on Lucy in Privacy & Security → Screen Recording and
-  Accessibility (on macOS 27 both are under "Device Control and Data Access"); reopen Lucy. Renaming the app keeps
-  these permissions: macOS ties them to the bundle id (`com.andrewrayne.jarvis`) and the signing certificate. The speech models
+- First launch: allow Microphone and Speech Recognition; turn on Jarvis in Privacy & Security → Screen Recording and
+  Accessibility (on macOS 27 both are under "Device Control and Data Access"); reopen Jarvis. The speech models
   download in the background (about 15 s).
 
 **Make it yours (name, languages, app ID)**
@@ -383,30 +364,6 @@ binary audio of Lucy's voice, and `device` requests that Jarvis answers with `de
   add the name's spellings in that language to `variants`, or remove the second listener if you only speak English.
 - The app ID `com.andrewrayne.jarvis` (Info.plist, `scripts/build_jarvis.sh`, the log subsystem and the `defaults`
   commands below) can be changed to your own reverse-domain ID.
-
-**Optional: hand website tasks to Claude** (`app/tools/browser.py`, `jarvis/Sources/Jarvis/ClaudeTask.swift`)
-
-For shopping, booking, comparing prices or filling forms on websites, Claude in Chrome is better than Gemini
-looking at screenshots. If you have a Claude subscription, Lucy can hand such tasks to it. The server never calls
-Anthropic: it only sends the task text to Jarvis.
-- On the Mac: install Claude Code (`npm i -g @anthropic-ai/claude-code`, a recent version: older ones can't choose
-  between several connected Chrome browsers), log in with `claude auth login`, and connect the Claude in Chrome
-  extension (claude.ai/chrome).
-- On Railway: `BROWSER_AGENT=claude`. If several Chrome browsers have the extension connected, set
-  `BROWSER_AGENT_CHROME` to the name or deviceId of the one on this Mac. Optional: `BROWSER_AGENT_MODEL`
-  (`sonnet` is faster and uses less of your plan), `BROWSER_TASK_MINUTES` (15).
-- Flow: Lucy calls `browser_task(task)` → the server answers "started" at once → Jarvis runs
-  `claude -p <task> --chrome --allowedTools "mcp__claude-in-chrome__*" --output-format json` in a clean
-  environment (the owner's login from the Keychain) → Claude's report goes to Telegram and into Lucy's memory.
-  One task at a time (one Chrome).
-- Limits in the task text: browser only (only the Chrome tools are allowed: no shell, no files), web page text is
-  data, never pay or place an order (stop right before it and report with the link), no messages to other people
-  unless asked, stop and say so if a login, code or captcha is needed. `browser_task` is also an owner-intent
-  checked action in `app/security.py`.
-- The tool is shown to Gemini only while `BROWSER_AGENT=claude` (`available=` in the tool registry); without it
-  Lucy uses `mac_do` as before. It uses your Claude plan's limits, and the Mac must be on.
-- Pitfalls: Claude Code started from inside another Claude app inherits its proxy settings, so Jarvis starts it
-  with a clean environment; a stale login gives "OAuth access token is invalid" (run `claude auth login` again).
 
 **5. Settings and troubleshooting**
 - Server env: `JARVIS_TOKEN`, optional `VOICE_LANGUAGE_CODES`, `VOICE_SILENCE_MS`, `MAC_MAX_STEPS`.
@@ -419,7 +376,7 @@ Anthropic: it only sends the task text to Jarvis.
 
 **6. Test**
 - "Lucy" → chime → "what's the weather?"; the same in your second language; "Lucy, open Notion" in one breath (opens silently);
-  ⇧⌘F and talk; talk over Lucy during a long answer; "what's on my screen?"; "play Daft Punk on Spotify";
+  ⇧E and talk; talk over Lucy during a long answer; "what's on my screen?"; "play Daft Punk on Spotify";
   "turn the volume down"; "okay, that's all" (hangs up silently); quit Jarvis and ask in Telegram "open Safari on my
   Mac" (Lucy says the Mac is offline).
 
@@ -432,7 +389,7 @@ Anthropic: it only sends the task text to Jarvis.
   automatic level is safer for a real voice.
 - Recent chat lines in the Mac prompt: when Lucy didn't understand, she answered an old question from the history.
 - A spoken "Yes?" after the wake word: talked over the owner's first words, and the mic is paused while she speaks.
-- Hotkeys ⌃⌥J, ` + Tab and ⇧E: replaced by ⇧⌘F at the owner's request (⇧E also blocked typing a capital E).
+- Hotkeys ⌃⌥J and ` + Tab: replaced by ⇧E at the owner's request.
 - Ordinary (blocking) tool calls for actions: Lucy narrated them ("Opening Spotify") or repeated the call many times.
 
 ## Stage 12. Phone calls
@@ -610,6 +567,144 @@ Wherever you are:
 
 ---
 
+# After the first release
+
+Stages 0–13 are the original build. Everything below was added later, one stage per improvement, in the order it was
+built. Earlier stages are left as they were: a later stage may change something an earlier one built (for example,
+the hotkey from stage 11 changes in stage 17), so follow the stages in order.
+
+## Stage 14. Edit Notion pages directly
+
+Asked by voice on the Mac to remove timecodes from a Notion script, Lucy clicked through the Notion app on the screen:
+she could read and create Notion pages but had no tool to change an existing one. Now she edits pages through the
+Notion API, from any channel, without touching the screen.
+
+- [x] `notion_replace_text(page, find, replace, regex, match_case, preview)`: find and replace (or remove) words,
+  phrases or patterns in every text block, keeping bold, italics and links; `preview` shows the changes without saving
+- [x] `notion_delete_blocks(page, contains, regex, preview)`: delete whole lines that contain a text or pattern
+- [x] `notion_append_to_page(page, content)`: add Markdown-style content to the end of a page
+- [x] `notion_read_page` reads the whole page: past 100 blocks (pagination) and inside toggles and columns
+- [x] Rule in every prompt (Telegram, voice, Mac): data in Notion, Gmail, Calendar, Drive and Sheets is changed with
+  its own tool, never by clicking on the Mac; "don't click" means never use `mac_do`
+- [x] The edit tools are silent actions on the Mac and owner-intent checked actions in `app/security.py`
+
+**How it works** (`app/tools/notion.py`)
+- `all_blocks()` walks the page with `GET /blocks/{id}/children?start_cursor=…` and opens nested blocks (not
+  sub-pages), up to 1500 blocks.
+- Text blocks (paragraph, headings, list items, to-do, quote, callout, toggle) are edited run by run in `rich_text`,
+  then saved with `PATCH /blocks/{id}`. Only blocks that actually match are changed; a removal also collapses the
+  double space it leaves behind.
+- Tested on a real 18 000-character script: the timecode pattern `\s*\(?\d{1,2}:\d{2}(?:\s*[–-]\s*\d{1,2}:\d{2})?\)?`
+  matched exactly the 11 chapter headings.
+
+**Result:** "Remove all timecodes from my script in Notion, don't click anything" works by voice or in Telegram.
+
+## Stage 15. The Mac app is called Lucy and has her face
+
+- [x] The installed app is `~/Applications/Lucy.app` (the project folder is still `jarvis/`); menu and permission
+  texts say Lucy; the old `Jarvis.app` is removed on install
+- [x] App icon = the bot's Telegram profile picture, downloaded and turned into a macOS icon by the build script
+- [x] macOS permissions survive the rename: they are tied to the bundle id (`com.andrewrayne.jarvis`) and the signing
+  certificate, which don't change
+
+**How it works** (`scripts/build_jarvis.sh`, `jarvis/make_icon.swift`)
+- `NAME="Lucy"` in the build script names the `.app` and its executable (`CFBundleName`, `CFBundleDisplayName`,
+  `CFBundleExecutable`, `CFBundleIconFile` in `jarvis/Info.plist`).
+- The script calls the Bot API with the token from `.env`: `getMe` → `getUserProfilePhotos` → `getFile`, then
+  `swift jarvis/make_icon.swift avatar.jpg Lucy.iconset` draws the picture inside a rounded square at every size
+  and `iconutil` makes `Lucy.icns`. No Python imaging library needed (Command Line Tools only). To use another
+  picture, put a square `jarvis/AppIcon.png`.
+- The app lives in the menu bar (no Dock icon); the face shows in Finder, Spotlight, Login Items and Privacy settings.
+
+**Result:** one name and one face for the assistant in Telegram and on the Mac.
+
+## Stage 16. One-word confirmation for calendar events on the Mac
+
+On the Mac, actions are silent (stage 11). For calendar events the owner wants to hear that it worked, in one word.
+
+- [x] After adding or changing a calendar event Lucy says one word: "Added." in English, the same first-person word
+  in the language being spoken; nothing else
+- [x] If the event fails, she says why instead
+- [x] Every other action stays silent
+
+**How it works** (`app/live/call.py`, `app/live/jarvis.py`)
+- `CONFIRMED_ACTIONS = {"calendar_create_event", "calendar_update_event"}`. On success their result is sent with
+  `WHEN_IDLE` (not `SILENT`) and carries `"say"`: confirm with one first-person verb, feminine where the language has
+  gender. Add a tool name to the set to hear a confirmation for it too.
+- They are also left out of the voice hold from stage 11, which would otherwise drop a reply of four words or fewer.
+- Tested with gemini-3.8-live: four out of four answers were the single word, in both languages.
+
+**Result:** "Add a meeting tomorrow at 10" → "Added."
+
+## Stage 17. New hotkey ⇧⌘F
+
+- [x] The Mac hotkey is ⇧⌘F (Shift + Command + F) instead of ⇧E from stage 11: start talking, cut Lucy off while she
+  speaks, otherwise end the conversation
+- [x] Shift + E types a capital E again
+
+**How it works:** `jarvis/Sources/Jarvis/Hotkey.swift` registers `kVK_ANSI_F` with `shiftKey | cmdKey` through
+Carbon's `RegisterEventHotKey` (no permission needed); `Hotkey.label` shows it in the menu. While the app runs, other
+apps' own ⇧⌘F (e.g. "Find in files" in code editors) doesn't fire. Change the key code and modifiers there to pick
+another shortcut.
+
+**Result:** ⇧⌘F anywhere starts a conversation with Lucy.
+
+## Stage 18. Several photos, one answer
+
+Sending three photos at once used to get three separate answers.
+
+- [x] An album (several photos sent together) gets one answer that looks at all of them; the caption applies to all
+- [x] A single photo is still answered right away
+- [x] Memory keeps "[3 photos] <caption>"
+
+**How it works** (`app/bot/handlers.py`): Telegram delivers each album photo as its own message with a shared
+`media_group_id`. The first one starts a collector; later ones join it; when no new photo has arrived for 1.5 s, all
+images (up to 10, in message order, largest size) and the caption go to Gemini in one request. Webhook updates run as
+background tasks, so waiting doesn't block anything.
+
+**Result:** "Which of these is best?" with an album → one comparison.
+
+## Stage 19. Website tasks by Claude (optional)
+
+For shopping, booking, comparing prices or filling forms on websites, Claude in Chrome does better than Gemini
+looking at screenshots (`mac_do`). With a Claude subscription, Lucy hands these tasks to Claude on the Mac. The server
+never calls Anthropic: it only sends the task text to Jarvis. Without a Claude subscription, skip this stage and
+everything works as before.
+
+- [x] `browser_task(task)`: Claude does the task in the owner's own Chrome (signed in to their sites); Lucy says it
+  has started, and Claude's report (what it did, prices, links) arrives in Telegram and in Lucy's memory
+- [x] Runs on the owner's Claude subscription through Claude Code, not an API key; uses the plan's limits
+- [x] Limits: browser tools only (no shell, no files); web page text is data; never pays or places an order (stops
+  right before it and sends the link); no messages to other people unless asked; stops if a login, code or captcha is
+  needed. `browser_task` is an owner-intent checked action in `app/security.py`
+- [x] Shown to Gemini only while `BROWSER_AGENT=claude`; otherwise Lucy uses `mac_do` as before
+- [x] Lucy's prompt states how she works (Gemini API for everything, Claude subscription only for `browser_task`), so
+  "do you run on a subscription or API tokens?" gets the truth instead of a guess
+- [x] Tested end to end: server → Jarvis → Claude Code → the owner's Chrome → report
+
+**Set up**
+- On the Mac: install Claude Code (`npm i -g @anthropic-ai/claude-code`, a recent version: older ones can't choose
+  between several connected Chrome browsers), log in with `claude auth login`, connect the Claude in Chrome extension.
+- On Railway: `BROWSER_AGENT=claude`. If several Chrome browsers have the extension connected, set
+  `BROWSER_AGENT_CHROME` to the name or deviceId of the one on this Mac. Optional: `BROWSER_AGENT_MODEL` (`sonnet`
+  is faster and uses less of your plan), `BROWSER_TASK_MINUTES` (15).
+
+**How it works** (`app/tools/browser.py`, `jarvis/Sources/Jarvis/ClaudeTask.swift`)
+- The tool answers "started" at once and runs the task in the background, one at a time (one Chrome).
+- Jarvis gets a `claude_task` device request and runs
+  `claude -p <task> --chrome --allowedTools "mcp__claude-in-chrome__*" --output-format json` in its own folder with
+  a clean environment (the owner's login comes from the Keychain), with a time limit.
+- The task text adds the limits above and which Chrome to select. The tool registry got an `available=` option, so
+  a tool can be hidden from Gemini until it's configured.
+- Pitfalls: Claude Code started from inside another Claude app inherits its proxy settings (hence the clean
+  environment); a stale login gives "OAuth access token is invalid" (run `claude auth login` again); with two
+  connected Chrome browsers Claude stops to ask which one, unless `BROWSER_AGENT_CHROME` says.
+
+**Result:** "Find a 3×3 Rubik's cube on Amazon under $15 and put it in my cart" → a Chrome tab on the Mac does it, and
+the report with the link comes to Telegram.
+
+---
+
 ## How to work with Claude Code
 
 1. Put `PLAN.md` and `CLAUDE.md` in the project folder (or fork the public repository, which has both). Claude Code
@@ -619,7 +714,9 @@ Wherever you are:
 4. Test the result yourself.
 5. Commit, tick the boxes in PLAN.md, next stage.
 6. If something was replaced along the way (a service, a model, an approach), Claude Code adds it to the "Deviations from the plan" table below.
-7. Model names change often. Before a stage that uses a new model, have Claude Code check the current names and
+7. New features after the first release become new stages at the end (14, 15, …), in the order they're built.
+   Earlier stages are never rewritten, so the plan follows the same order as the video.
+8. Model names change often. Before a stage that uses a new model, have Claude Code check the current names and
    prices in Google's docs and update `app/config.py` / `app/costs.py`.
 
 The table below is the log of the original build: what the first version planned, what was used instead and why.
@@ -657,7 +754,7 @@ When you follow the plan, the checklists above already describe the final versio
 | 7 | Who can teach | Only the owner's own messages create lessons or skills, never emails, pages or files | Prompt-injection protection: content can't rewrite the assistant's rules |
 | 8 | Documents (docx/pdf) | Markdown → HTML uploaded to Drive as a Google Doc (folder "Lucy"), exported by Google as PDF/DOCX and sent in Telegram | No PDF/Word libraries or fonts on the server; every document also lives in Drive |
 | 8 | Long research | In-process background task: Gemini plans 5 sub-questions → parallel Google-grounded answers → report → document; logged in `agent_runs` (`lucy-research`) | Typically about a minute; the chat stays free meanwhile |
-| 8 | Photos | Incoming photos/image files go to Gemini with the caption, albums together in one request; `generate_image` (Gemini 3.1 Flash Image) sends pictures | Covers both directions of "photos and images in Telegram" |
+| 8 | Photos | Incoming photos/image files go to Gemini with the caption; `generate_image` (Gemini 3.1 Flash Image) sends pictures | Covers both directions of "photos and images in Telegram" |
 | 8 | Database backup | Hourly check makes sure `Lucy Backups/backup-YYYY-MM-DD.zip` exists after 03:00 local; JSON per table, embeddings omitted, last 14 kept; silent unless it fails | Stateless and redeploy-safe; embeddings can be recomputed |
 | 8 | YouTube permissions | Added the `youtube.force-ssl` scope (owner approved; re-consent via `scripts/google_auth.py`) | Needed to read comments and the captions of private/unlisted videos; the tools only read |
 | 8 | GitHub access | Fine-grained token `lucy-assistant`: all repos, Contents read-only, Issues read & write, expires 2027-10-24; REST via `httpx` | Least privilege: Lucy can read code and manage issues but can't push or delete |
@@ -671,10 +768,10 @@ When you follow the plan, the checklists above already describe the final versio
 | 10 | "Open YouTube and research" by voice | Prompt rule: never say "I can't browse", search instead (`web_search`, `youtube_search`, `deep_research`); new `youtube_search` tool | Owner feedback: on a call the assistant refused a research request it could do with search |
 | 11 | Wake word with Porcupine / openWakeWord, "Hey Jarvis" | "Lucy" (owner's choice) with Apple's on-device SpeechAnalyzer: English + a far-field recogniser for the owner's second language, in separate analyzers, speech detector, partial results | Free, offline, no extra SDK. Replaced SFSpeechRecognizer, which refuses to run with macOS Dictation off; one analyzer with two recognisers gave no results from the second one |
 | 11 | Gemini Computer Use model | `mac_do`: screenshot → Gemini Flash returns one JSON action on a 0–1000 grid → Jarvis clicks/types | The Computer Use preview model returned 503 on every try |
-| 11 | Echo cancellation + talking over Lucy | No echo cancellation: mic paused while Lucy speaks; Jarvis detects the owner talking over her by comparing the mic with her known loudness (learned echo level), plus ⇧⌘F | Apple's voice processing passed only silence from the Studio Display mic; the owner wants to interrupt by voice |
+| 11 | Echo cancellation + talking over Lucy | No echo cancellation: mic paused while Lucy speaks; Jarvis detects the owner talking over her by comparing the mic with her known loudness (learned echo level), plus ⇧E | Apple's voice processing passed only silence from the Studio Display mic; the owner wants to interrupt by voice |
 | 11 | Raw microphone audio | First channel only, 150 Hz low-cut, automatic level (up to ×6) | Gemini Live ignored the quiet, boomy Studio Display audio |
 | 11 | Context on the Mac | Long-term memory only, no recent chat lines; language hints; "answer only what was just said" | Lucy answered an old test question when she didn't understand the owner |
-| 11 | Global hotkey | ⇧⌘F via Carbon (owner's choice, after ⌃⌥J, ` + Tab and ⇧E) | No permission needed; while the app runs, other apps' own ⇧⌘F doesn't fire |
+| 11 | Global hotkey | ⇧E via Carbon (owner's choice, after ⌃⌥J and ` + Tab) | No permission needed; Shift + E no longer types a capital E while Jarvis runs |
 | 11 | Greeting when summoned | A chime; the 2.5 s before it are sent too | A spoken "Yes?" overlapped the owner's first words; one-breath commands still work |
 | 11 | Signing and notarizing | Local self-signed certificate in its own keychain file, created by the build script | No Apple Developer account needed; permissions survive rebuilds |
 | 11 | Arbitrary AppleScript | Only fixed actions | Text on screen can't make Lucy run scripts |
@@ -696,6 +793,4 @@ When you follow the plan, the checklists above already describe the final versio
 | 13 | Six database tables | Added `usage` (one row per priced call) | Cost tracking and the daily limit need history that survives redeploys |
 | 13 | Prompt-injection protection by prompt | Prompt rule + taint tracking + an owner-intent check before risky actions | A prompt alone can be argued with; the check never sees the injected text |
 | 13 | Railway template from the working project | A separate secret-free `lucy-template` project linked to a fresh public repository | The working project holds real keys and points at the private repository with personal history |
-| 4 | Notion: create and read pages | Also edit existing pages (`notion_replace_text`, `notion_delete_blocks`, `notion_append_to_page`) and a "cloud tools before clicking" rule | Without an edit tool the Mac assistant fell back to clicking through the Notion app to remove timecodes |
-| 11 | Mac app called Jarvis with a stock icon | Installed as `Lucy.app` with the Telegram bot's profile picture as its icon | One name and one face for the assistant everywhere; the bundle id stays the same so permissions survive |
-| 11 | Only Gemini models in the product; web tasks by Gemini clicking (`mac_do`) | Optional `browser_task`: Claude Code on the Mac does website tasks in the owner's Chrome on the owner's Claude subscription | Claude in Chrome handles websites better; the server still never calls a non-Gemini API, and without a Claude subscription everything works as before |
+

@@ -12,7 +12,8 @@ She uses your Gmail, Calendar, Drive, Sheets, Forms, Notion, YouTube channel and
 keeps reminders, remembers everything you tell her, learns from your corrections, and runs 24/7 on Railway, even when
 your computer is off. Every model is Google Gemini (Flash for text, Live for voice).
 
-`PLAN.md` is the full build log: 13 stages, what each one does, how it works and what was changed along the way.
+`PLAN.md` is the full build log: stages 0–13 build the assistant, later stages (14 onwards) add improvements in the
+order they were made; for each, what it does, how it works and what was changed along the way.
 This README is the short version: how to get your own copy running.
 
 ## What you need

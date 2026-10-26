@@ -86,7 +86,10 @@ When an implementation differs from `PLAN.md` (a different service, model or app
 
 1. **Work autonomously.** Do everything you can without asking: write code, install tools and CLIs, run every terminal command yourself, create projects via CLIs, deploy, read logs and fix errors. Never ask the owner to run a command you can run.
 2. Only stop when something truly requires the owner: signing up, logging in, or copying a key from a website. Then give short, exact instructions (which site, which button, what to paste back) and continue as soon as you have it.
-3. Keep changes scoped to the current stage.
+3. Keep changes scoped to the current stage. After stage 13 (the first release), every new feature or change is a new
+   stage appended at the end of `PLAN.md` (14, 15, …) in the order it is built, even if it changes something an
+   earlier stage built. Never rewrite earlier stages: they match the recorded video, and viewers repeat the stages in
+   the same order.
 4. After deploying, test what you can yourself, then give the owner a short manual test checklist in plain language.
 5. Tick the `PLAN.md` checkboxes when the stage works.
 6. Log any deviation from the plan (see "Deviations log").
