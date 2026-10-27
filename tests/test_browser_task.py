@@ -55,5 +55,33 @@ def test_task_runs_on_the_mac_and_reports_to_telegram(monkeypatch):
     asyncio.run(scenario())
     action, params = requests[0]
     assert action == "claude_task" and "Rubik's cube" in params["prompt"]
-    assert "Never pay or place an order" in params["prompt"]
+    assert "stop right before the final" in params["prompt"] and "explicitly confirmed" not in params["prompt"]
     assert "$9.99" in sent[0] and saved
+
+
+def test_confirmed_order_pays_and_card_numbers_are_removed(monkeypatch):
+    monkeypatch.setattr(get_settings(), "browser_agent", "claude")
+    requests = []
+
+    async def fake_send(_):
+        pass
+
+    async def fake_request(action, timeout=0, **params):
+        requests.append(params)
+        return {"ok": True, "result": "Order placed, total 4.10 EUR"}
+
+    async def nothing(*args, **kwargs):
+        pass
+
+    monkeypatch.setattr(browser.mac, "_send", fake_send)
+    monkeypatch.setattr(browser.mac, "request", fake_request)
+    monkeypatch.setattr(browser.outbox, "send_text", nothing)
+    monkeypatch.setattr(browser.store, "save_message", nothing)
+
+    async def scenario():
+        await browser.browser_task("Glovo: place the water order, total 4.10 EUR, card 4111 1111 1111 1111", True)
+        await asyncio.gather(*browser._running)
+
+    asyncio.run(scenario())
+    prompt = requests[0]["prompt"]
+    assert "explicitly confirmed" in prompt and "4111" not in prompt and "[card number removed]" in prompt

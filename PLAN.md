@@ -703,6 +703,32 @@ everything works as before.
 **Result:** "Find a 3×3 Rubik's cube on Amazon under $15 and put it in my cart" → a Chrome tab on the Mac does it, and
 the report with the link comes to Telegram.
 
+## Stage 20. Paying on websites, after a yes
+
+Stage 19 stopped before every "Pay" button. Now Claude can finish an order, in two steps, with the card the owner
+saved on the site. Lucy never handles passwords or card numbers: Claude in Chrome refuses to type them (Anthropic's
+own rule, not ours), and anything sent in a chat ends up in logs and memory.
+
+- [x] Step 1, `browser_task(task)`: Claude fills the cart, picks the address and the saved card, stops before the final
+  click and reports the items, address, payment method and **total**
+- [x] Step 2: the owner says "yes" (Telegram or voice) → `browser_task(task, confirmed=true)` with the same items and
+  total → Claude places the order with the saved card. If the price or items changed, it doesn't pay and reports why
+- [x] Logins: Claude uses the sessions already open in the owner's Chrome. If a site asks to log in, it stops and
+  asks the owner to log in once in that Chrome
+- [x] Card numbers in a task are cut out in code before the task leaves the server; Lucy's prompt says never to put
+  passwords or card numbers into a task
+
+**Set up (once per shop):** in Chrome on the Mac, log in to the site yourself and save a card in your account there
+(for Glovo: Profile → Payment methods). The login stays for weeks.
+
+**How it works** (`app/tools/browser.py`): a `confirmed` flag picks one of two rules in the task text (`PREPARE`:
+stop before paying and report the total; `CONFIRMED`: the owner approved this exact order, pay with the saved card).
+Claude in Chrome will place an order only when the request itself contains the owner's approval of the items and
+total, which is why it's two calls.
+
+**Result:** "Order a 6-pack of 1.5 L water on Glovo" → report "Bezoya 6×1.5 L, 3.20 € + delivery 1.99 €, card ••42,
+total 5.19 €" → "yes" → "Order placed, arrives 18:40".
+
 ---
 
 ## How to work with Claude Code
